@@ -1,0 +1,144 @@
+{
+  "real": true,
+  "task": "task-01-occworld-spatial",
+  "eval": "occupancy_copy_last_baseline",
+  "note": "실 Occ3D-nuScenes gts(mini 10씬). copy-last=논문 Copy&Paste 정의.",
+  "protocol": {
+    "history_frames": 4,
+    "forecast_frames": 6,
+    "frame_hz": 2,
+    "num_classes": 18,
+    "free_index": 17,
+    "camera_mask_applied": true,
+    "miou_class_set": "0..16 (free=17 제외; 'others'=0 포함)",
+    "aggregation": "지평별 전역 confusion 누적 후 IoU (프레임 평균 아님)",
+    "at_time_convention": "mIoU/IoU @Xs = 해당 시각 프레임(2Hz step); ego-L2 는 누적평균(별도)"
+  },
+  "reproducibility": {
+    "seed": 42,
+    "git_commit": "d5d6c4dad27ec605b752fc400aa264eda30eee97",
+    "timestamp_utc": "2026-07-03T05:51:34.901705+00:00",
+    "hardware": {
+      "platform": "Windows-11-10.0.26200-SP0",
+      "python": "3.13.9",
+      "gpu": "N/A (기준선은 CPU만)"
+    },
+    "dataset": {
+      "version": "v1.0-mini",
+      "counts": {
+        "num_scenes": 10,
+        "num_keyframes": 404,
+        "num_train_scenes": 8,
+        "num_val_scenes": 2,
+        "num_unknown_scenes": 0
+      }
+    }
+  },
+  "annotations_json_split_crosscheck": "미확인/한계 (annotations.json 미취득; devkit 공식 mini split 사용)",
+  "paper_reference_only": {
+    "source": "OccWorld (Zheng+ 2024, arXiv:2311.16038) Table — Copy&Paste baseline",
+    "mIoU_percent": {
+      "1s": 14.91,
+      "2s": 10.54,
+      "3s": 8.11
+    },
+    "IoU_percent": {
+      "1s": 24.47,
+      "2s": 19.77,
+      "3s": 17.14
+    },
+    "note": "reference_only — 우리 실측값과 별개. 데이터 subset(mini)·평가범위 차이로 직접 비교 불가."
+  },
+  "results": {
+    "val": {
+      "split": "val",
+      "num_scenes": 2,
+      "scenes": [
+        "scene-0103",
+        "scene-0916"
+      ],
+      "skipped_scenes": [],
+      "num_windows": 63,
+      "mIoU": {
+        "per_horizon": [
+          0.16473549490477987,
+          0.1074690194171741,
+          0.0810645613415497,
+          0.06397980789791169,
+          0.05734040033527686,
+          0.050965583474204164
+        ],
+        "at": {
+          "1s": 0.1074690194171741,
+          "2s": 0.06397980789791169,
+          "3s": 0.050965583474204164
+        },
+        "mean": 0.0875924778951494
+      },
+      "IoU": {
+        "per_horizon": [
+          0.3487292512554077,
+          0.27211060575608476,
+          0.235957782181687,
+          0.21113222667204193,
+          0.19640528902061966,
+          0.18349030397964522
+        ],
+        "at": {
+          "1s": 0.27211060575608476,
+          "2s": 0.21113222667204193,
+          "3s": 0.18349030397964522
+        },
+        "mean": 0.2413042431442477
+      }
+    },
+    "train": {
+      "split": "train",
+      "num_scenes": 8,
+      "scenes": [
+        "scene-0061",
+        "scene-0553",
+        "scene-0655",
+        "scene-0757",
+        "scene-0796",
+        "scene-1077",
+        "scene-1094",
+        "scene-1100"
+      ],
+      "skipped_scenes": [],
+      "num_windows": 251,
+      "mIoU": {
+        "per_horizon": [
+          0.2898644894157074,
+          0.2295488686179545,
+          0.20566996388016914,
+          0.19005775138650402,
+          0.18089571633746712,
+          0.17392599676846934
+        ],
+        "at": {
+          "1s": 0.2295488686179545,
+          "2s": 0.19005775138650402,
+          "3s": 0.17392599676846934
+        },
+        "mean": 0.21166046440104527
+      },
+      "IoU": {
+        "per_horizon": [
+          0.4633382724826062,
+          0.4039546836825459,
+          0.3711638619192383,
+          0.34840817454169243,
+          0.33388889339976957,
+          0.32371885836348924
+        ],
+        "at": {
+          "1s": 0.4039546836825459,
+          "2s": 0.34840817454169243,
+          "3s": 0.32371885836348924
+        },
+        "mean": 0.374078790731557
+      }
+    }
+  }
+}
