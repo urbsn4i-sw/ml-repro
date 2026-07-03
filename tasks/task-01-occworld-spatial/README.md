@@ -43,12 +43,13 @@ conda env create -f ../../environment.yml
 # 1) 데이터(소규모) — Phase 1
 bash scripts/download_data.sh --subset mini
 
-# 2) 스모크런 — Phase 1
+# 2) 스모크런 — Phase 1 (구현됨: 합성 텐서로 기준선→지표 파이프라인 검증, 실데이터 불필요)
 bash scripts/smoke.sh
 
 # 3) 기준선 → 사전학습 추론 — Phase 1~2
-# python scripts/eval_baseline.py --config config/baseline.yaml   (copy-last)
-# python scripts/infer_occworld.py --config config/occworld.yaml --ckpt <hf_or_local>
+#    기준선 구현됨: src/baselines.py (copy-last / linear-extrapolation)
+#    지표 구현됨:   common/metrics.py (미래 mIoU · ego L2 · 충돌률 · 롤아웃 발산)
+# python scripts/infer_occworld.py --config config/occworld.yaml --ckpt <hf_or_local>   # Phase 2
 ```
 
 ## 실행 계획 (하이브리드 경로)
@@ -62,9 +63,16 @@ bash scripts/smoke.sh
 | copy-last (기준선) | — | — | — | 미실행 |
 | OccWorld (추론) | — | — | — | 미실행 |
 
+## Phase 1 진행 현황 (2026-07 기준)
+- 구현 완료(데이터·설치 불필요 부분): 지표(`common/metrics.py`), 기준선(`src/baselines.py`),
+  더미 스모크 파이프라인(`scripts/run_baseline_demo.py` + `smoke.sh`), 데이터 취득 안내(`download_data.sh`).
+- 스모크런은 **합성 텐서**로 기준선→지표 계산이 끝까지 도는 것까지만 검증(성능 아님).
+- 아직 미실행/미확인: 실제 nuScenes-mini/Occ3D gts 취득, mini temporal pkl 생성(A→B→C), 실데이터 지표.
+
 ## 한계 / 미확인
-- Phase 0 시점: 데이터·가중치 미취득, 환경 미설치. 성능 수치 없음.
-- mini info pkl 생성 가능 여부, mmdet3d/spconv 로컬 빌드 성공 여부는 Phase 1~2에서 실측 후 기록.
+- 데이터·가중치 미취득, 환경(py3.8/mmdet3d) 미설치. **실데이터 성능 수치 없음**(결과 표 비어 있음).
+- smoke.sh 수치는 합성 더미이며 성능 보고가 아니다(`metrics.json`의 `synthetic_dummy=true`).
+- mini info pkl 생성 가능 여부, mmdet3d/spconv 로컬 빌드 성공 여부는 데이터 취득·Phase 2에서 실측 후 기록.
 
 ## 완료 정의 (DoD) 체크
 - [ ] `smoke.sh` 통과 + 문서화된 단일 명령으로 재현
