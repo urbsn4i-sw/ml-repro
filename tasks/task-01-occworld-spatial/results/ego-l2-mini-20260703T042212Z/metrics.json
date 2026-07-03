@@ -1,0 +1,141 @@
+{
+  "real": true,
+  "task": "task-01-occworld-spatial",
+  "eval": "ego_l2_baselines",
+  "note": "실 nuScenes v1.0-mini ego 궤적 기반. 점유 지표는 Occ3D gts 부재로 미계산.",
+  "protocol": {
+    "history_frames": 4,
+    "forecast_frames": 6,
+    "frame_hz": 2,
+    "history_seconds": 2.0,
+    "forecast_seconds": 3.0
+  },
+  "occupancy_metrics": "blocked_on_occ3d",
+  "reproducibility": {
+    "seed": 42,
+    "git_commit": "5d778e7b50749d012af18a0076882f46ff91c6aa",
+    "timestamp_utc": "2026-07-03T04:22:12.562764+00:00",
+    "hardware": {
+      "platform": "Windows-11-10.0.26200-SP0",
+      "processor": "Intel64 Family 6 Model 191 Stepping 2, GenuineIntel",
+      "python": "3.13.9",
+      "gpu": "N/A (기준선은 CPU만 사용)"
+    },
+    "dataset": {
+      "version": "v1.0-mini",
+      "counts": {
+        "num_scenes": 10,
+        "num_keyframes": 404,
+        "num_train_scenes": 8,
+        "num_val_scenes": 2,
+        "num_unknown_scenes": 0
+      }
+    },
+    "config_used": {
+      "temporal": {
+        "history_seconds": 2.0,
+        "forecast_seconds": 3.0,
+        "frame_hz": 2
+      },
+      "baselines": {
+        "copy_last": {
+          "enabled": true
+        },
+        "linear_extrapolation": {
+          "enabled": true,
+          "use_last_k": 2
+        }
+      }
+    }
+  },
+  "results": {
+    "val": {
+      "split": "val",
+      "num_scenes": 2,
+      "scenes": [
+        "scene-0103",
+        "scene-0916"
+      ],
+      "num_windows": 63,
+      "copy_last": {
+        "per_step_mean": [
+          2.58958264893434,
+          5.1852401609251455,
+          7.75631475486908,
+          10.309182015492826,
+          12.83679089154385,
+          15.333021316378106
+        ],
+        "avg_up_to": {
+          "1s": 3.887411404929743,
+          "2s": 6.4600798950553475,
+          "3s": 9.001688631357224
+        },
+        "overall_mean": 9.001688631357224
+      },
+      "linear_extrapolation": {
+        "per_step_mean": [
+          0.23110431601564463,
+          0.6769108934629305,
+          1.3229094047648582,
+          2.169940809563498,
+          3.209392814028764,
+          4.425891583236778
+        ],
+        "avg_up_to": {
+          "1s": 0.4540076047392876,
+          "2s": 1.1002163559517328,
+          "3s": 2.006024970178746
+        },
+        "overall_mean": 2.006024970178746
+      }
+    },
+    "train": {
+      "split": "train",
+      "num_scenes": 8,
+      "scenes": [
+        "scene-0061",
+        "scene-0553",
+        "scene-0655",
+        "scene-0757",
+        "scene-0796",
+        "scene-1077",
+        "scene-1094",
+        "scene-1100"
+      ],
+      "num_windows": 251,
+      "copy_last": {
+        "per_step_mean": [
+          2.818218266722691,
+          5.650626914338323,
+          8.498992362650947,
+          11.361863184227605,
+          14.233794783336657,
+          17.115337250540122
+        ],
+        "avg_up_to": {
+          "1s": 4.234422590530507,
+          "2s": 7.082425181984891,
+          "3s": 9.946472126969391
+        },
+        "overall_mean": 9.946472126969391
+      },
+      "linear_extrapolation": {
+        "per_step_mean": [
+          0.1652445853552482,
+          0.38743379542214657,
+          0.6660547080273076,
+          1.0105461810911025,
+          1.421649279534684,
+          1.886432085698049
+        ],
+        "avg_up_to": {
+          "1s": 0.27633919038869736,
+          "2s": 0.5573198174739512,
+          "3s": 0.9228934391880896
+        },
+        "overall_mean": 0.9228934391880896
+      }
+    }
+  }
+}
