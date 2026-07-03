@@ -84,6 +84,7 @@ bash scripts/smoke.sh
 - 재현: `python scripts/build_mini_infos.py && python scripts/eval_ego_baseline.py`
   → `results/<run_id>/metrics.json`(+`summary.md`)에 git hash·하드웨어·seed·train split 포함.
 - 점유 mIoU/IoU/충돌률은 **Occ3D-nuScenes gts 부재로 미계산**(`blocked_on_occ3d`).
+- ⚠️ val은 2씬(63윈도우)로 표본이 작아 일반화 주의.
 
 ## Phase 1 진행 현황 (2026-07 기준)
 - 구현 완료: 지표(`common/metrics.py`), 기준선(`src/baselines.py`), 더미 스모크(`smoke.sh`), 취득 안내(`download_data.sh`).
