@@ -1,0 +1,51 @@
+# base.yaml — Task 01 (OccWorld 축소 재현) 기본 설정
+# =====================================================================
+# 논문(OccWorld, Zheng+ 2024 / DreamerV3, Hafner+ 2025)에서 "확정한 사실"만 반영.
+# 하드코딩 금지 원칙에 따라 스크립트는 이 config 를 읽고, CLI 로 오버라이드 가능.
+# ⚠️ 논문 보고 성능수치는 config 에 넣지 않는다(참조용이며 우리 결과 아님).
+# =====================================================================
+seed: 42
+
+# --- 시간 프로토콜 (OccWorld 표준) ---
+temporal:
+  history_seconds: 2.0      # 과거 2s 관측
+  forecast_seconds: 3.0     # 미래 3s 예측
+  frame_hz: 2               # nuScenes 키프레임 2Hz → history 4프레임 / forecast 6프레임
+  # 파생값(참고): history_frames = history_seconds * frame_hz = 4
+  #               forecast_frames = forecast_seconds * frame_hz = 6
+
+# --- 평가 지표 (PROJECT_GUIDELINE §8 / 논문 표준) ---
+metrics:
+  future_miou: true         # 지평별 미래 mIoU
+  future_iou: true          # 이진 점유 IoU
+  ego_l2: true              # ego 궤적 L2 (1s/2s/3s 누적평균)
+  collision_rate: true      # 예측 ego 셀의 점유 충돌률
+  rollout_divergence: true  # 롤아웃 안정성(오차 발산) — 우리 추가 진단 지표
+  free_class_index: 0       # mIoU 평균에서 제외할 free/empty 클래스
+  # ignore_index: 255       # (Occ3D mask 사용 시) 데이터 확정 후 지정
+
+# --- 기준선 ---
+baselines:
+  # copy-last(persistence) == OccWorld 논문의 Copy&Paste 기준선과 동일 정의
+  copy_last: {enabled: true}
+  linear_extrapolation: {enabled: true, use_last_k: 2}
+
+# --- 모델: OccWorld VQ-VAE 토큰화 (논문 확정값) ---
+model:
+  vqvae:
+    codebook_size: 512      # 코드북 엔트리 수
+    embedding_dim: 128      # 코드 임베딩 차원
+    spatial_downsample: 4   # 공간 다운샘플 배율 (×4)
+  # transformer(시공간 자기회귀) 등 상세는 Phase 2(추론) 환경 확정 후 채운다.
+
+# --- 데이터 ---
+data:
+  dataset: nuscenes
+  subset: mini              # v1.0-mini 우선
+  occ_labels: occ3d-nuscenes
+  root: data/nuscenes       # .gitignore 로 커밋 차단됨
+  # info pkl 은 download_data.sh 의 A→B→C 전략으로 생성(대용량, 커밋 금지)
+
+# --- 산출물 ---
+output:
+  results_dir: results      # metrics.json / 표 / 소형 figure 만 커밋
