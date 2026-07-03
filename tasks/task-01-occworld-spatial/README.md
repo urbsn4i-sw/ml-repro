@@ -72,26 +72,36 @@ bash scripts/smoke.sh
 - **Phase 1 (mini 데이터·기준선·평가 골격):** 로컬 3060. mini info pkl은 "직접 생성" 기본, 실패 시 val pkl 필터, 그래도 안 되면 한계 명시.
 - **Phase 2 (OccWorld 사전학습 추론):** 로컬 WSL2 smoke 우선 → mmcv/mmdet3d/spconv 빌드 실패 또는 8GB OOM 시 **Colab(T4/L4 16GB) 이관**. 이관 지점·사유 기록.
 
-## 결과 (실제 실행값만 기입 — 현재 비어 있음)
-| 모델 | 미래 mIoU | ego L2 | 하드웨어 | 비고 |
-|---|---|---|---|---|
-| copy-last (기준선) | — | — | — | 미실행 |
-| OccWorld (추론) | — | — | — | 미실행 |
+## 결과 (실제 실행값만 기입)
+**ego L2 기준선 — 실 nuScenes v1.0-mini, val 2씬/63윈도우** (과거 2s→미래 3s, CPU, 누적평균 m)
+
+| 모델 | 미래 mIoU | L2@1s | L2@2s | L2@3s | 하드웨어 | 비고 |
+|---|---|---|---|---|---|---|
+| copy-last (persistence=논문 Copy&Paste) | (Occ3D 대기) | 3.887 | 6.460 | 9.002 | CPU (Win11) | 실측 |
+| linear-extrapolation (등속) | (Occ3D 대기) | 0.454 | 1.100 | 2.006 | CPU (Win11) | 실측 |
+| OccWorld (추론) | — | — | — | — | — | Phase 2 미실행 |
+
+- 재현: `python scripts/build_mini_infos.py && python scripts/eval_ego_baseline.py`
+  → `results/<run_id>/metrics.json`(+`summary.md`)에 git hash·하드웨어·seed·train split 포함.
+- 점유 mIoU/IoU/충돌률은 **Occ3D-nuScenes gts 부재로 미계산**(`blocked_on_occ3d`).
+- ⚠️ val은 2씬(63윈도우)로 표본이 작아 일반화 주의.
 
 ## Phase 1 진행 현황 (2026-07 기준)
-- 구현 완료(데이터·설치 불필요 부분): 지표(`common/metrics.py`), 기준선(`src/baselines.py`),
-  더미 스모크 파이프라인(`scripts/run_baseline_demo.py` + `smoke.sh`), 데이터 취득 안내(`download_data.sh`).
-- 스모크런은 **합성 텐서**로 기준선→지표 계산이 끝까지 도는 것까지만 검증(성능 아님).
-- 아직 미실행/미확인: 실제 nuScenes-mini/Occ3D gts 취득, mini temporal pkl 생성(A→B→C), 실데이터 지표.
+- 구현 완료: 지표(`common/metrics.py`), 기준선(`src/baselines.py`), 더미 스모크(`smoke.sh`), 취득 안내(`download_data.sh`).
+- **실 nuScenes v1.0-mini 취득·검증 완료**: 10씬(train 8/val 2, 공식 mini split), 404 키프레임.
+  `.tgz` 로컬 배치 → `data/nuscenes/`(gitignore) 추출 → `build_mini_infos.py`로 temporal info 생성(전략 [A] 성공, 무설치).
+- **실데이터 ego-L2 기준선 실측 완료**(위 결과 표). 등속 외삽이 persistence보다 크게 우수.
+- 아직 미실행/미확인: **Occ3D-nuScenes gts 취득**(점유 지표), OccWorld 추론(Phase 2).
 
 ## 한계 / 미확인
-- 데이터·가중치 미취득, 환경(py3.8/mmdet3d) 미설치. **실데이터 성능 수치 없음**(결과 표 비어 있음).
-- smoke.sh 수치는 합성 더미이며 성능 보고가 아니다(`metrics.json`의 `synthetic_dummy=true`).
-- mini info pkl 생성 가능 여부, mmdet3d/spconv 로컬 빌드 성공 여부는 데이터 취득·Phase 2에서 실측 후 기록.
+- **점유 지표(mIoU/IoU/충돌률) 없음**: v1.0-mini.tgz에는 센서/메타만 있고 Occ3D 점유 gts가 없어 미계산(`blocked_on_occ3d`).
+- ego-L2는 **기준선 2종만**의 실측이며 OccWorld 대비는 아직 없음(Phase 2 추론 후).
+- OccWorld 가중치·py3.8/mmdet3d/spconv 환경 미설치. mmdet3d/spconv 로컬 빌드 성공 여부는 Phase 2에서 실측.
+- smoke.sh 수치는 합성 더미이며 성능 보고가 아니다(`metrics.json`의 `synthetic_dummy=true`, 실 결과와 별개).
 
 ## 완료 정의 (DoD) 체크 — *Phase 1 종료 시점*
 - [x] `smoke.sh` 통과 + 문서화된 단일 명령으로 재현 — **단, 합성 더미 파이프라인 검증**(실데이터 아님)
-- [ ] 기준선 대비 지표 표(results/, 실제 값) — **미달: 실데이터 취득 후**(현재 결과 표 비어 있음)
+- [~] 기준선 대비 지표 표(results/, 실제 값) — **부분: ego-L2 실측 완료**(2 기준선, val/train), 점유 지표는 Occ3D 대기
 - [x] 시드 고정 + 환경 파일 존재 — `common/seeding.py`(set_seed) + `environment.yml`(핀, 미설치) + `config/base.yaml`
 - [x] 데이터·가중치 git 미포함 + download 스크립트 + 라이선스 명시 — `.gitignore` 차단 + `download_data.sh` + 위 라이선스 절
 - [x] 앵커/브리지 논문 인용(DOI·SCI(E) 여부) — Hafner+ 2025(DOI, SCI(E) O) / Zheng+ 2024(arXiv, 학회)
