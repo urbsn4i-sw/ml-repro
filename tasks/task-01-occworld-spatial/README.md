@@ -100,7 +100,9 @@ bash scripts/smoke.sh
   → `results/<run_id>/{metrics.json,summary.md}`에 git hash·하드웨어·seed·train split 기록.
 - ⚠️ val은 2씬(63윈도우)로 표본이 작아 일반화 주의. mIoU 클래스셋은 0..16(free=17 제외, 'others'=0 포함).
 
-## Phase 1 진행 현황 (2026-07 기준)
+## Phase 1 — ✅ 공식 종료 (2026-07-03)
+> **최종 상태:** 실 nuScenes v1.0-mini에서 **ego-L2 + 점유 mIoU/IoU 기준선 실측 완료**. 충돌률은 예측 궤적↔점유 결합 프로토콜 확정 후로 유보, OccWorld 모델 대비는 Phase 2로 이월.
+
 - 구현 완료: 지표(`common/metrics.py`), 기준선(`src/baselines.py`), 더미 스모크(`smoke.sh`), 취득 안내(`download_data.sh`).
 - **실 nuScenes v1.0-mini 취득·검증 완료**: 10씬(train 8/val 2, 공식 mini split), 404 키프레임.
   `.tgz` 로컬 배치 → `data/nuscenes/`(gitignore) 추출 → `build_mini_infos.py`로 temporal info 생성(전략 [A] 성공, 무설치).
@@ -117,14 +119,18 @@ bash scripts/smoke.sh
 - smoke.sh 수치는 합성 더미이며 성능 보고가 아니다(`synthetic_dummy=true`, 실 결과와 별개).
 
 ## 완료 정의 (DoD) 체크 — *Phase 1 종료 시점*
-- [x] `smoke.sh` 통과 + 문서화된 단일 명령으로 재현 — **단, 합성 더미 파이프라인 검증**(실데이터 아님)
-- [x] 기준선 대비 지표 표(results/, 실제 값) — **ego-L2 + 점유 mIoU/IoU 실측 완료**(copy-last/linear, val·train). OccWorld 모델 대비는 Phase 2
-- [x] 시드 고정 + 환경 파일 존재 — `common/seeding.py`(set_seed) + `environment.yml`(핀, 미설치) + `config/base.yaml`
-- [x] 데이터·가중치 git 미포함 + download 스크립트 + 라이선스 명시 — `.gitignore` 차단 + `download_data.sh` + 위 라이선스 절
+**Phase 1 범위 내 — 완료**
+- [x] `smoke.sh` 통과 + 문서화된 단일 명령으로 재현 (합성 더미 파이프라인 검증)
+- [x] 기준선 대비 지표 표(results/, 실제 값) — ego-L2 + 점유 mIoU/IoU 실측(copy-last/linear, val·train)
+- [x] 시드 고정 + 환경 파일 존재 — `seeding.py` + `environment.yml`(핀) + `config/base.yaml`
+- [x] 데이터·가중치 git 미포함 + download 스크립트 + 라이선스 명시 — `.gitignore` + `download_data.sh` + 라이선스 절
 - [x] 앵커/브리지 논문 인용(DOI·SCI(E) 여부) — Hafner+ 2025(DOI, SCI(E) O) / Zheng+ 2024(arXiv, 학회)
-- [ ] Colab/게이밍PC 구동 가능성 + 실제 하드웨어 기록 — **미달: Phase 2(환경 구축·추론)에서 실측**
-- [x] 실패·미확인 정직하게 기술 — 「Phase 1 진행 현황」·「한계/미확인」 섹션
-- [x] 비밀키·대용량 파일 커밋 없음 — 각 커밋 전 금지 확장자 스캔 통과, PDF·데이터 미포함
+- [x] 실패·미확인 정직하게 기술 — 「한계/미확인」·「Phase 1」 섹션
+- [x] 비밀키·대용량 파일 커밋 없음 — 각 커밋 전 금지 확장자 스캔 통과, PDF·데이터·gts·npz 미포함
 
-> 요약: **환경·재현·라이선스·문서·안전** 항목은 Phase 1에서 충족. **실데이터 지표 표**와
-> **하드웨어 구동 기록**은 데이터 취득·Phase 2 이후에 채운다(현재는 정직하게 미달로 표기).
+**미완 — Phase 2 / 후속으로 이월** (Phase 1 범위 밖, 정직하게 미달)
+- [ ] 충돌률 실측 — *유보*: 구현은 있으나(`metrics.collision_rate`) 예측 궤적↔점유 결합 프로토콜 확정 후
+- [ ] OccWorld 사전학습 추론 + 모델↔기준선 대비 — *Phase 2*
+- [ ] Colab/게이밍PC 구동 가능성 + 실제 하드웨어(GPU/VRAM) 기록 — *Phase 2*(환경 구축·추론에서 실측)
+
+> 요약: Phase 1 범위(스캐폴딩·mini 데이터·기준선·평가)는 **모두 충족하여 종료**. OccWorld 추론·충돌률·하드웨어 구동은 Phase 2/후속으로 이월(현재 정직하게 미달로 표기).
