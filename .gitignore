@@ -1,0 +1,79 @@
+# === ML 재현 리포 .gitignore ===
+# 원칙: 원천 데이터·라벨·체크포인트·캐시·비밀은 "어떤 경로로도" 커밋되지 않게 한다.
+# (PROJECT_GUIDELINE.md §4 / CLAUDE.md 절대규칙 2)
+
+# --- 데이터셋 / 라벨 (어떤 하위 경로든) ---
+data/
+**/data/
+**/gts/
+nuscenes/
+**/nuscenes/
+occ3d/
+**/occ3d/
+Occ3D*/
+**/samples/
+**/sweeps/
+**/maps/
+
+# --- 대용량 아티팩트 / 체크포인트 / 전처리물 (확장자 기준, 전 경로) ---
+*.pkl
+*.npz
+*.npy
+*.ckpt
+*.pt
+*.pth
+*.safetensors
+*.bin
+*.pcd
+*.h5
+*.hdf5
+*.tar
+*.tar.gz
+*.zip
+*.7z
+
+# --- 비밀 / 토큰 ---
+.env
+.env.*
+!.env.example
+*.token
+*_token
+secrets.*
+**/secrets/
+
+# --- 파이썬 캐시 / 빌드 ---
+__pycache__/
+**/__pycache__/
+*.py[cod]
+*.egg-info/
+.eggs/
+build/
+dist/
+.ipynb_checkpoints/
+
+# --- 실행 산출물 (작은 metrics/표/figure만 화이트리스트로 예외 허용) ---
+results/**/*
+!results/**/metrics.json
+!results/**/*.csv
+!results/**/*.md
+!results/**/*.png
+outputs/
+work_dirs/
+wandb/
+runs/
+logs/
+*.log
+
+# --- 가상환경 / 에디터 / OS ---
+.venv/
+venv/
+env/
+.conda/
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# --- Claude 로컬 개인 설정 ---
+CLAUDE.local.md
+.claude/settings.local.json

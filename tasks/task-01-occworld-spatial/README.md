@@ -1,0 +1,77 @@
+# Task 01 — 3D 점유 월드모델 (OccWorld) · Spatial Intelligence
+
+> 상태: **Phase 0 (스캐폴딩)**. 데이터·가중치 미취득. 아래 결과 표는 실측 후에만 채운다.
+
+## 과제 카드 (12항목)
+- **과제명 / 방향:** 과제01 — 3D 점유 월드모델 · Spatial Intelligence
+- **1. 문제 설명:** 자율주행 씬을 3D 점유(occupancy) 격자로 표현하고, 과거 관측으로 **미래 점유와 ego 궤적**을 예측하는 월드모델을 축소 재현한다. OccWorld는 점유를 VQ-VAE로 토큰화하고 GPT류 시공간 트랜스포머로 미래를 자기회귀 예측한다.
+- **2. 왜 어려운가:**
+  - 3D 점유 데이터(Occ3D)와 nuScenes는 **비상업 라이선스·등록 필요**, 용량이 크다.
+  - `mmcv/mmdet3d/spconv` 스택은 **CUDA·PyTorch·컴파일 버전 궁합이 극도로 예민**(sm_86, py3.8).
+  - VRAM 제약(3060 8GB)으로 원본 배치·해상도 그대로는 OOM.
+- **3. 관련 과제:** 과제04(PointMamba/점군), 자율주행 BEV/Occ 인식.
+- **4. 핵심 질문(RQ):** 게이밍PC/Colab 예산에서 OccWorld의 **미래 점유 예측 원리**를 mini 데이터로 재현하고, 단순 기준선(copy-last) 대비 이점을 관측할 수 있는가?
+- **5. 예시 시나리오:** nuScenes mini 씬에서 t 시점까지의 점유를 입력받아 t+1..t+N 점유와 ego 위치를 예측.
+- **6. 실험 구조:** 1) mini 데이터·info pkl 준비 → 2) copy-last 기준선 → 3) OccWorld 사전학습 가중치 추론 → 4) mIoU/L2 평가 → 5) (여력 시) 축소 파인튜닝.
+- **7. 실험 설계(표):**
+
+  | 구성요소 | 축소 재현 설정 |
+  |---|---|
+  | 목표 태스크 | 미래 3D 점유 예측 (+ ego L2) |
+  | 데이터 | nuScenes v1.0-mini + Occ3D gts (subset mini) |
+  | 모델 | OccWorld (VQ-VAE + 시공간 트랜스포머), 사전학습 가중치 추론 우선 |
+  | 지표 | 미래 mIoU, ego L2, 충돌률, 롤아웃 안정성 |
+  | 비교군(기준선) | copy-last (마지막 관측 점유를 미래로 복사) |
+  | 절제(ablation) | (여력 시) 예측 horizon 길이, 토큰화 유무 |
+- **8. 학습자가 배울 수 있는 점:** 점유 토큰화(VQ-VAE), 자기회귀 시공간 예측, mmdet3d 계열 환경 구축의 현실적 난점, 컴퓨트 예산 내 축소 재현 방법.
+- **9. 상세 설명:** §"재현 방법" 참조. 범위 축소는 (a) mini 데이터, (b) 사전학습 추론 우선, (c) 배치·해상도 축소, (d) 안 되면 Colab 이관으로 달성.
+- **10. 최초 프롬프트:** "OccWorld를 nuScenes mini로 축소 재현. 먼저 스캐폴딩·기준선·평가 골격(Phase 0~1)을 로컬에서, 사전학습 추론(Phase 2)은 로컬 smoke 후 실패 시 Colab 이관. 데이터·가중치는 커밋 금지."
+- **11. 난이도:** 전반 **상**. ① 데이터 취득: **중~상**(등록·라이선스·용량). ② 게이밍PC 구동: **상**(mmdet3d/spconv 빌드 + 8GB VRAM; Colab fallback 상정).
+- **12. 태그:** #occupancy #world-model #nuscenes #occ3d #vqvae #autoregressive #mmdet3d
+
+## 대표 논문·라이선스
+- **앵커 논문:** Hafner et al. (2025). *Nature*, DOI 10.1038/s41586-025-08744-2. SCI(E) ✅
+- **브리지 논문:** Zheng et al. (2024). *OccWorld: Learning a 3D Occupancy World Model for Autonomous Driving*. ECCV, arXiv:2311.16038.
+- **데이터 라이선스:** nuScenes — 비상업·계정 등록 필요. Occ3D-nuScenes — nuScenes 약관 종속.
+- **코드 라이선스:** OccWorld 원 구현 라이선스(리포 확인 후 명시) — Phase 2에서 확정.
+
+## 재현 방법 (실제 명령) — Phase 진행에 따라 채움
+```bash
+# 0) 환경 (Phase 2에서 실측 설치)
+conda env create -f ../../environment.yml
+
+# 1) 데이터(소규모) — Phase 1
+bash scripts/download_data.sh --subset mini
+
+# 2) 스모크런 — Phase 1
+bash scripts/smoke.sh
+
+# 3) 기준선 → 사전학습 추론 — Phase 1~2
+# python scripts/eval_baseline.py --config config/baseline.yaml   (copy-last)
+# python scripts/infer_occworld.py --config config/occworld.yaml --ckpt <hf_or_local>
+```
+
+## 실행 계획 (하이브리드 경로)
+- **Phase 0 (스캐폴딩):** 로컬 3060. ← *현재 단계*
+- **Phase 1 (mini 데이터·기준선·평가 골격):** 로컬 3060. mini info pkl은 "직접 생성" 기본, 실패 시 val pkl 필터, 그래도 안 되면 한계 명시.
+- **Phase 2 (OccWorld 사전학습 추론):** 로컬 WSL2 smoke 우선 → mmcv/mmdet3d/spconv 빌드 실패 또는 8GB OOM 시 **Colab(T4/L4 16GB) 이관**. 이관 지점·사유 기록.
+
+## 결과 (실제 실행값만 기입 — 현재 비어 있음)
+| 모델 | 미래 mIoU | ego L2 | 하드웨어 | 비고 |
+|---|---|---|---|---|
+| copy-last (기준선) | — | — | — | 미실행 |
+| OccWorld (추론) | — | — | — | 미실행 |
+
+## 한계 / 미확인
+- Phase 0 시점: 데이터·가중치 미취득, 환경 미설치. 성능 수치 없음.
+- mini info pkl 생성 가능 여부, mmdet3d/spconv 로컬 빌드 성공 여부는 Phase 1~2에서 실측 후 기록.
+
+## 완료 정의 (DoD) 체크
+- [ ] `smoke.sh` 통과 + 문서화된 단일 명령으로 재현
+- [ ] 기준선 대비 지표 표(results/, 실제 값)
+- [ ] 시드 고정 + 환경 파일 존재
+- [ ] 데이터·가중치 git 미포함 + download 스크립트 + 라이선스 명시
+- [ ] 앵커/브리지 논문 인용(DOI·SCI(E) 여부)
+- [ ] Colab/게이밍PC 구동 가능성 + 실제 하드웨어 기록
+- [ ] 실패·미확인 정직하게 기술
+- [ ] 비밀키·대용량 파일 커밋 없음

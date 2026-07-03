@@ -1,0 +1,51 @@
+# environment.yml — Task 01 (OccWorld) 재현용 후보 환경
+# =====================================================================
+# ⚠️ Phase 0에서는 "핀 버전 명시"까지만 한다. 실제 설치 성공 여부는
+#    Phase 2(환경 구축)에서 WSL2/Colab에 실측한다. 지금 설치하지 말 것.
+#
+# 대상: OccWorld (Zheng+ 2024, arXiv:2311.16038) 공개 구현.
+#   - Python 3.8 계열, CUDA 11.3, PyTorch 1.10.1 (Ampere sm_86 = RTX 3060 지원)
+#   - mmcv/mmdet/mmseg/mmdet3d/spconv 계열은 상호 버전 궁합이 매우 예민하다.
+#     WSL2에서 sm_86 + py3.8 빌드가 깨지면 → Colab(T4/L4 16GB)로 이관 (fallback).
+#
+# 아래 버전은 OccWorld README 기준의 "후보"이며, Phase 2에서 실측 후 확정한다.
+# 검증 표기: [확정] = Phase 2에서 설치 성공 확인 / [후보] = 미검증
+# =====================================================================
+name: occworld
+channels:
+  - pytorch
+  - conda-forge
+  - nvidia
+dependencies:
+  # --- 코어: [후보] Phase 2 실측 필요 ---
+  - python=3.8.16
+  - pip=23.3
+  # PyTorch 1.10.1 + cu113 (conda 설치가 sm_86 빌드에 가장 안정적)
+  - pytorch=1.10.1
+  - torchvision=0.11.2
+  - torchaudio=0.10.1
+  - cudatoolkit=11.3
+  - pip:
+      # --- OpenMMLab 스택: [후보] 버전 궁합 예민 (Phase 2에서 순서·버전 실측) ---
+      # mmcv-full 은 torch/cuda 조합에 맞는 사전빌드 휠이 있으면 그것을 쓰고,
+      # 없으면 소스 빌드(오래 걸림). Phase 2에서 확정.
+      - mmcv-full==1.4.0
+      - mmdet==2.14.0
+      - mmsegmentation==0.14.1
+      # mmdet3d==0.17.1 은 소스 빌드 권장(핀 커밋). Phase 2에서 방법 확정.
+      - mmdet3d==0.17.1
+      # spconv: cu113 사전빌드 휠 (sm_86 포함). 실패 시 소스 빌드 or Colab.
+      - spconv-cu113==2.1.25
+      # --- 학습/유틸: [후보] ---
+      - numpy==1.23.5
+      - numba==0.53.0
+      - pyyaml==6.0.1
+      - einops==0.6.1
+      - timm==0.9.7
+      - nuscenes-devkit==1.1.10
+      - scikit-image==0.19.3
+      - tensorboard==2.14.0
+      - tqdm==4.66.1
+      # --- 리포 공통 유틸/배포: [후보] (경량, 설치 리스크 낮음) ---
+      - huggingface_hub==0.20.3
+      - pandas==2.0.3
