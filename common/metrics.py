@@ -39,37 +39,53 @@ def save_metrics(metrics: dict[str, Any], out_path: str | Path) -> Path:
 
 
 # ---------------------------------------------------------------------
-# 1) 미래 mIoU (점유 semantic 예측)
+# 1) 미래 mIoU / IoU (점유 예측)
 # ---------------------------------------------------------------------
-def per_class_iou(
-    pred: Any,
-    gt: Any,
-    num_classes: int,
-    ignore_index: Optional[int] = None,
-):
-    """클래스별 IoU 배열(shape=(num_classes,)) 반환.
+def _flatten_keep(pred, gt, mask, ignore_index):
+    """pred/gt 를 1D 로 펴고, mask==True & gt!=ignore_index 복셀만 남긴다.
 
-    union==0(해당 클래스가 pred·gt 어디에도 없음)인 클래스는 NaN.
-    ignore_index 라벨은 gt 기준으로 계산에서 제외.
+    mask: Occ3D mask_camera 등 '평가 대상 복셀' 불리언(미관측 복셀 제외용).
     """
     np = _np()
     pred = np.asarray(pred).reshape(-1)
     gt = np.asarray(gt).reshape(-1)
     if pred.shape != gt.shape:
         raise ValueError(f"pred/gt 원소 수 불일치: {pred.shape} vs {gt.shape}")
+    keep = np.ones(gt.shape, dtype=bool)
+    if mask is not None:
+        m = np.asarray(mask).reshape(-1).astype(bool)
+        if m.shape != gt.shape:
+            raise ValueError(f"mask 형상 불일치: {m.shape} vs {gt.shape}")
+        keep &= m
     if ignore_index is not None:
-        keep = gt != ignore_index
-        pred, gt = pred[keep], gt[keep]
+        keep &= gt != ignore_index
+    return pred[keep], gt[keep]
 
+
+def per_class_iou(
+    pred: Any,
+    gt: Any,
+    num_classes: int,
+    ignore_index: Optional[int] = None,
+    mask: Any = None,
+):
+    """클래스별 IoU 배열(shape=(num_classes,)) 반환. (confusion-matrix, O(N))
+
+    union==0(해당 클래스가 pred·gt 어디에도 없음)인 클래스는 NaN.
+    mask==True 인 복셀만, ignore_index 라벨은 제외하고 계산.
+    """
+    np = _np()
+    pred, gt = _flatten_keep(pred, gt, mask, ignore_index)
     ious = np.full(num_classes, np.nan, dtype=np.float64)
-    for c in range(num_classes):
-        p = pred == c
-        g = gt == c
-        union = int(np.count_nonzero(p | g))
-        if union == 0:
-            continue  # 해당 클래스 부재 → NaN 유지(평균에서 제외)
-        inter = int(np.count_nonzero(p & g))
-        ious[c] = inter / union
+    if gt.size == 0:
+        return ious
+    # confusion matrix (rows=gt, cols=pred). 라벨은 [0, num_classes) 가정.
+    k = gt.astype(np.int64) * num_classes + pred.astype(np.int64)
+    cm = np.bincount(k, minlength=num_classes * num_classes).reshape(num_classes, num_classes)
+    inter = np.diag(cm).astype(np.float64)
+    union = cm.sum(axis=1) + cm.sum(axis=0) - inter  # gt_count + pred_count - inter
+    nz = union > 0
+    ious[nz] = inter[nz] / union[nz]
     return ious
 
 
@@ -79,14 +95,15 @@ def mean_iou(
     num_classes: int,
     ignore_index: Optional[int] = None,
     exclude: Optional[Iterable[int]] = None,
+    mask: Any = None,
 ) -> float:
     """단일 프레임 mIoU (등장한 클래스에 대한 평균).
 
-    exclude: 평균에서 뺄 클래스 id(예: free/empty 클래스). NaN(부재 클래스)은 자동 제외.
+    exclude: 평균에서 뺄 클래스 id(예: free/empty). mask: 평가 대상 복셀 불리언.
     유효 클래스가 하나도 없으면 NaN 반환(값을 지어내지 않음).
     """
     np = _np()
-    ious = per_class_iou(pred, gt, num_classes, ignore_index=ignore_index)
+    ious = per_class_iou(pred, gt, num_classes, ignore_index=ignore_index, mask=mask)
     if exclude is not None:
         for c in exclude:
             if 0 <= c < num_classes:
@@ -96,15 +113,34 @@ def mean_iou(
     return float(np.nanmean(ious))
 
 
+def occupancy_iou(pred: Any, gt: Any, free_index: int, mask: Any = None) -> float:
+    """이진 점유 IoU (클래스 무관): '점유(label != free)' 영역의 IoU.
+
+    OccWorld 가 mIoU 와 함께 보고하는 기하 점유 IoU. mask 로 평가 복셀 한정.
+    """
+    np = _np()
+    pred, gt = _flatten_keep(pred, gt, mask, ignore_index=None)
+    if gt.size == 0:
+        return float("nan")
+    p = pred != free_index
+    g = gt != free_index
+    union = int(np.count_nonzero(p | g))
+    if union == 0:
+        return float("nan")
+    return float(np.count_nonzero(p & g) / union)
+
+
 def miou_per_horizon(
     pred_seq: Any,
     gt_seq: Any,
     num_classes: int,
     ignore_index: Optional[int] = None,
     exclude: Optional[Iterable[int]] = None,
+    mask_seq: Any = None,
 ) -> dict[str, Any]:
     """지평(horizon)별 mIoU. pred_seq/gt_seq 형상 (T, *spatial).
 
+    mask_seq: (T, *spatial) 불리언(각 지평의 평가 대상 복셀). None 이면 전체.
     반환: {"per_horizon": [mIoU_t1, ...], "mean": 전체 지평 평균(NaN 무시)}.
     """
     np = _np()
@@ -116,7 +152,34 @@ def miou_per_horizon(
         raise ValueError("pred_seq/gt_seq 는 (T, *spatial) 형상이어야 함")
 
     per_h = [
-        mean_iou(pred_seq[t], gt_seq[t], num_classes, ignore_index, exclude)
+        mean_iou(
+            pred_seq[t], gt_seq[t], num_classes, ignore_index, exclude,
+            mask=None if mask_seq is None else np.asarray(mask_seq)[t],
+        )
+        for t in range(pred_seq.shape[0])
+    ]
+    arr = np.asarray(per_h, dtype=np.float64)
+    mean = float(np.nanmean(arr)) if np.any(~np.isnan(arr)) else float("nan")
+    return {"per_horizon": per_h, "mean": mean}
+
+
+def iou_per_horizon(
+    pred_seq: Any,
+    gt_seq: Any,
+    free_index: int,
+    mask_seq: Any = None,
+) -> dict[str, Any]:
+    """지평별 이진 점유 IoU. 반환 {"per_horizon": [...], "mean": ...}."""
+    np = _np()
+    pred_seq = np.asarray(pred_seq)
+    gt_seq = np.asarray(gt_seq)
+    if pred_seq.shape != gt_seq.shape:
+        raise ValueError(f"시퀀스 형상 불일치: {pred_seq.shape} vs {gt_seq.shape}")
+    per_h = [
+        occupancy_iou(
+            pred_seq[t], gt_seq[t], free_index,
+            mask=None if mask_seq is None else np.asarray(mask_seq)[t],
+        )
         for t in range(pred_seq.shape[0])
     ]
     arr = np.asarray(per_h, dtype=np.float64)

@@ -21,8 +21,9 @@ metrics:
   ego_l2: true              # ego 궤적 L2 (1s/2s/3s 누적평균)
   collision_rate: true      # 예측 ego 셀의 점유 충돌률
   rollout_divergence: true  # 롤아웃 안정성(오차 발산) — 우리 추가 진단 지표
-  free_class_index: 0       # mIoU 평균에서 제외할 free/empty 클래스
-  # ignore_index: 255       # (Occ3D mask 사용 시) 데이터 확정 후 지정
+  free_class_index: 17      # Occ3D-nuScenes 규약: class 17=free/empty (0=others). mIoU 평균에서 제외
+  num_classes: 18           # Occ3D-nuScenes semantic 클래스 수 (0..17)
+  use_camera_mask: true     # Occ3D 공식 평가: mask_camera=1 복셀만 포함(미관측 제외)
 
 # --- 기준선 ---
 baselines:
