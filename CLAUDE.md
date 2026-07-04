@@ -5,8 +5,8 @@
 > Codex와 병행 시 `AGENTS.md`와 항상 동일하게 유지한다.
 
 ## 프로젝트 개요
-- ML/DL/RL 최근 돌파 사례를 **SLAM·도시·공간지능 방향으로 재설계한 과제(01~04)** 를 게이밍PC/Colab 수준에서 **축소 재현·공개**하는 저장소.
-- 목적은 SOTA 재현이 아니라 **원리 재현·학습**. 과제 목록·지표·논문은 `PROJECT_GUIDELINE.md` §8.
+- **3D 점유 월드모델(OccWorld / DreamerV3)** 을 게이밍PC/Colab 수준에서 **축소 재현·공개**하는 저장소. 원래 더 큰 재현 시리즈의 일부였고, **교통 예측**은 별도 저장소([urban-traffic-forecasting](https://github.com/urbsn4i-sw/urban-traffic-forecasting))로 분리됨(nav/LiDAR는 계획 단계).
+- 목적은 SOTA 재현이 아니라 **원리 재현·학습**. 표준 지표·논문은 `PROJECT_GUIDELINE.md` §8.
 
 ## 절대 규칙 (충돌 시 이 규칙이 우선)
 1. **결과를 지어내지 않는다.** 실제 실행 로그/`metrics.json`의 값만 보고. 미검증·실패는 "미확인/한계"로 명시.
@@ -16,7 +16,7 @@
 5. **논문·라이선스 인용.** 과제 README에 앵커/브리지 논문(DOI·SCI(E) 여부)과 데이터/코드 라이선스 명시.
 
 ## 작업 방식
-- 과제 1건 = GitHub Issue 1건. 브랜치 `feat/task-0X-...`, 작은 단위 커밋(각 커밋은 통과 상태 지향).
+- 작업 1건 = GitHub Issue 1건. 브랜치 `feat/<slug>-...`, 작은 단위 커밋(각 커밋은 통과 상태 지향).
 - 구조를 바꾸는 큰 작업은 **계획을 먼저 제시하고 승인 후 실행**.
 - 표준 실행 순서: 과제카드 → 이슈 → 데이터(mini) → **기준선 먼저** → 본 모델 → 평가 → 데모 노트북 → 문서 → PR(DoD 통과). 상세는 `PROJECT_GUIDELINE.md` §5~§6.
 
@@ -24,7 +24,7 @@
 - `PROJECT_GUIDELINE.md` — 마스터 지침(사람+에이전트)
 - `.claude/rules/` — 모듈 규칙(python / reproducibility / data-and-hub)
 - `common/` — 시드·지표·HF 헬퍼
-- `tasks/task-0X-*/` — 과제별 (README 12항목 카드 · config · src · scripts · notebooks · results)
+- `tasks/task-01-occworld-spatial/` — OccWorld 과제 (README 12항목 카드 · config · src · scripts · notebooks · results)
 
 ## 자주 쓰는 명령
 - 스모크런: `bash tasks/<id>/scripts/smoke.sh`
