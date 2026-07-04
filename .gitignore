@@ -15,13 +15,6 @@ Occ3D*/
 **/sweeps/
 **/maps/
 
-# --- 교통(Task 02 STGNN) 데이터 아티팩트 (아래 확장자 규칙으로도 이미 차단되나 명시) ---
-# METR-LA/PEMS-BAY 속도 행렬(.h5), 인접행렬(adj_mx*.pkl), 전처리 윈도우(.npz)
-metr-la.h5
-pems-bay.h5
-adj_mx*.pkl
-**/processed/
-
 # --- 대용량 아티팩트 / 체크포인트 / 전처리물 (확장자 기준, 전 경로) ---
 *.pkl
 *.npz

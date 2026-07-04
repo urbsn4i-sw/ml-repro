@@ -1,13 +1,15 @@
-# ml-repro — ML 재현 과제 모노레포
+# ml-repro — 3D 점유 월드모델 (OccWorld · DreamerV3)
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
 > 🇬🇧 **[English README](README.md)**
 
-최근 ML 돌파(DreamerV3, OccWorld 등)를 게이밍PC(**RTX 3060, 8GB**)나 Colab 수준에서 SLAM·도시·공간지능 방향으로 재설계하여 **축소 재현**한다. 목적은 SOTA 재현이 아니라 **원리 재현·학습**이다.
+**3D 점유 월드모델**(OccWorld, DreamerV3 월드모델 원리 기반)을 게이밍PC(**RTX 3060, 8GB**)나 Colab 수준에서 **축소 재현**한다. 목적은 SOTA 재현이 아니라 **원리 재현·학습**이다.
+
+> 이는 더 큰 축소 재현 계획의 한 과제였다. 관련 과제 — **도시 교통 예측(시공간 GNN)** — 은 이제 별도 저장소로 독립했다: [urbsn4i-sw/urban-traffic-forecasting](https://github.com/urbsn4i-sw/urban-traffic-forecasting).
 
 ## 프로젝트 목적
-최근 ML/DL/RL 돌파 사례(예: **DreamerV3**, **OccWorld**)를 소비자용 하드웨어나 Colab에서 **원리 중심으로 축소 재현**하고, SLAM·도시·공간지능 문제로 재설계한다. SOTA 수치 재현이 목적이 **아니라** 학습·재현이 목적이다.
+**OccWorld** 3D 점유 월드모델(그리고 그 바탕인 **DreamerV3** 월드모델 아이디어)의 **원리**를 소비자용 하드웨어나 Colab에서 축소 재현한다. SOTA 수치 재현이 목적이 **아니라** 학습·재현이 목적이다.
 
 ## 핵심 원칙 — 결과를 지어내지 않는다
 실제 실행값(`metrics.json`)만 보고한다. 미검증·미실행은 **한계**로 명시하며 달성한 것처럼 쓰지 않는다. 데이터셋·라벨·체크포인트는 **절대 커밋하지 않는다**(`.gitignore` 차단).
@@ -17,30 +19,22 @@
 ### 프로젝트 구조
 ```mermaid
 flowchart TB
-  root["ml-repro<br/>SLAM · 도시 · 공간지능<br/>(RTX 3060, 8GB)"]
+  root["ml-repro<br/>3D 점유 월드모델<br/>(RTX 3060, 8GB)"]
 
-  root --> occ["3D 점유 월드모델<br/>(OccWorld ← DreamerV3)"]
+  root --> occ["OccWorld ← DreamerV3"]
   occ --> occ1["기준선 완료<br/>mIoU · ego-L2"]:::done
   occ --> occ2["추론 보류<br/>가중치 오프라인"]:::onhold
   occ --> occ3["공개 완료"]:::done
-
-  root --> t1["교통 예측<br/>(GraphCast → DCRNN)<br/>Phase 0·1·2: STGNN + RQ1 절제"]:::active
-  root --> t2["교차 임바디먼트 내비<br/>(Open X-Embodiment)"]:::planned
-  root --> t3["LiDAR 점군<br/>(Mamba → PointMamba)"]:::planned
 
   root --> infra["공유 인프라<br/>seeding · metrics · HF 업로드 게이트 · license guard"]:::infra
 
   subgraph Legend["범례"]
     Ld["완료(done)"]:::done
-    La["진행 중(active)"]:::active
     Lh["보류(on hold)"]:::onhold
-    Lp["계획(planned)"]:::planned
   end
 
   classDef done fill:#c6f6d5,stroke:#2f855a,color:#1a202c;
-  classDef active fill:#b2f5ea,stroke:#2c7a7b,color:#1a202c;
   classDef onhold fill:#fefcbf,stroke:#b7791f,color:#1a202c;
-  classDef planned fill:#e2e8f0,stroke:#718096,color:#1a202c;
   classDef infra fill:#bee3f8,stroke:#2b6cb0,color:#1a202c;
 ```
 
@@ -73,11 +67,10 @@ flowchart LR
 | 작업 | 초점 | 상태 |
 |---|---|---|
 | **3D 점유 월드모델** (OccWorld ← DreamerV3) | 미래 점유 + 자차 궤적 예측 | 기준선 **완료**(mIoU · ego-L2) · 추론 **보류**(가중치 오프라인) · **공개 완료** |
-| 교통 예측 (GraphCast → DCRNN) | 도시 교통 시공간 | **Phase 0·1·2 완료**: METR-LA 데이터 + 기준선 + 소형 STGNN 학습·인접행렬 절제(RQ1) 실측 · SOTA 아님(원리 재현) |
-| 교차 임바디먼트 내비 (Open X-Embodiment) | 로봇 몸체 간 내비게이션 | **계획됨**(미착수) |
-| LiDAR 점군 (Mamba → PointMamba) | 점군 이해 | **계획됨**(미착수) |
 
-## 실측 결과 (실제 실행값)
+> 관련 축소 재현 프로젝트(별도 저장소): **도시 교통 예측(시공간 GNN)** → [urbsn4i-sw/urban-traffic-forecasting](https://github.com/urbsn4i-sw/urban-traffic-forecasting).
+
+## 실측 결과 (실제값, 기준선만)
 실 nuScenes **v1.0-mini**, 프로토콜 과거 2s → 미래 3s @ 2Hz, CPU. **검증 split = 2씬 / 63윈도우** (⚠️ 표본이 작아 일반화 주의).
 
 **점유 — copy-last 기준선(= 논문 "Copy&Paste" 정의), 실 Occ3D gts** (camera-mask 적용, free 클래스 17 제외):
@@ -97,15 +90,6 @@ flowchart LR
 
 > 위 수치는 **우리 실측값**이며 논문 수치가 아니다. 움직이는 차량에 대해 등속 외삽이 persistence를 크게 앞서는 것은 예상되는 결과다.
 
-### 교통 예측 — STGNN + 기준선 (실 METR-LA)
-실 METR-LA(207센서, 5분 간격), 시간순 70/10/20, **test split = 6,850 윈도우**, masked MAE(결측=0), 원 단위(mph). 소형 STGNN(2-layer·hidden 32, RTX 3060, ~5분/모드, VRAM ~1.4GB)을 인접행렬 4모드로 학습해 기준선과 비교:
-- **STGNN (learned 인접행렬)** MAE **3.00 / 3.50 / 4.28** @15/30/60분 — copy-last(4.02/5.09/6.80)를 전 지평, seasonal-HA(4.19 평탄)를 15/30분에서 이김. 60분은 HA 가 근소 우위(4.19 vs 4.28).
-- **RQ1 (고정 vs 학습 인접행렬):** learned(4.28@60m) > fixed 도로망(4.89) > identity/그래프없음(4.95) — **인접행렬 학습이 고정 도로망보다 낫다**.
-- **RQ2 (오차 누적):** STGNN-learned 스텝당 MAE 기울기 0.155 vs copy-last 0.332 — STGNN 이 약 절반만 누적(seasonal-HA 는 구조상 평탄).
-- **SOTA 아님**(원리 재현): 우리 소형 모델은 DCRNN 논문(2.77/3.15/3.60)에 못 미침. PEMS-BAY 미실측.
-
-상세: 과제 카드 [`tasks/task-02-traffic-stgnn/README.md`](tasks/task-02-traffic-stgnn/README.md) · [`metrics.json`](tasks/task-02-traffic-stgnn/results/stgnn-metr-la-20260704T053515Z/metrics.json).
-
 ## Phase 2 — OccWorld 추론이 보류된 이유 (외부요인)
 OccWorld 사전학습 가중치·temporal pkl은 저자 **Tsinghua cloud(Seafile) 링크**로만 배포되는데, 이 링크가 **현재 비활성**이다(브라우저·CLI 모두 "share link not found"; 실제 토큰이 가짜 토큰과 동일하게 반응). 모델 수치를 지어낼 수 없으므로 **OccWorld↔기준선 대비 행은 공란으로 둔다.** [`ISSUE_phase2_blocked.md`](tasks/task-01-occworld-spatial/ISSUE_phase2_blocked.md) 참조. 링크 복구 또는 미러 확보 시 재개한다.
 
@@ -121,7 +105,7 @@ python tasks/task-01-occworld-spatial/scripts/eval_occ_baseline.py
 상세: [`PROJECT_GUIDELINE.md`](PROJECT_GUIDELINE.md), 과제 카드 [`tasks/task-01-occworld-spatial/README.md`](tasks/task-01-occworld-spatial/README.md).
 
 ## References (인용 논문)
-> 이 목록은 구현된 작업 기준이다: **3D 점유 월드모델** **및 교통 예측**(데이터+기준선 완료). 교통 논문(GraphCast / DCRNN / Graph WaveNet)은 이제 실제 사용 중이며 [`CITATIONS.md`](CITATIONS.md)에 등재돼 있다. 아직 미착수인 작업(교차 임바디먼트 내비, LiDAR 점군)은 착수 시 해당 논문을 추가한다. BibTeX: [`CITATIONS.md`](CITATIONS.md).
+> 이 저장소의 구현 작업(**3D 점유 월드모델**) 기준 인용이다. BibTeX: [`CITATIONS.md`](CITATIONS.md).
 
 - **[앵커]** Hafner, D., Pasukonis, J., Ba, J., & Lillicrap, T. (2025). *Mastering diverse control tasks through world models.* **Nature, 640, 647–653.** DOI [10.1038/s41586-025-08744-2](https://doi.org/10.1038/s41586-025-08744-2) [SCI(E)].
   — DreamerV3: 이 프로젝트가 축소 재현하는 월드모델 원리.
@@ -131,10 +115,6 @@ python tasks/task-01-occworld-spatial/scripts/eval_occ_baseline.py
   — 기반 주행 데이터셋(우리는 ego 궤적에 v1.0-mini 서브셋 사용).
 - **[점유 라벨]** Tian, X., Jiang, T., Yun, L., Wang, Y., Wang, Y., & Zhao, H. (2023). *Occ3D: A Large-Scale 3D Occupancy Prediction Benchmark for Autonomous Driving.* arXiv [2304.14365](https://arxiv.org/abs/2304.14365).
   — mIoU/IoU에 쓰는 3D 시맨틱 점유 정답(`gts`)의 출처.
-- **[교통 · 앵커]** Lam, R., et al. (2023). *Learning skillful medium-range global weather forecasting.* **Science, 382, 1416–1421.** DOI [10.1126/science.adi2336](https://doi.org/10.1126/science.adi2336) [SCI(E)].
-  — GraphCast: 교통 STGNN이 도시 규모로 대응하는 격자→그래프→롤아웃 패러다임.
-- **[교통 · 브리지]** Li, Y., Yu, R., Shahabi, C., & Liu, Y. (2018). *DCRNN: Data-Driven Traffic Forecasting.* **ICLR 2018.** arXiv [1707.01926](https://arxiv.org/abs/1707.01926). · Wu, Z., et al. (2019). *Graph WaveNet for Deep Spatial-Temporal Graph Modeling.* **IJCAI 2019.** DOI [10.24963/ijcai.2019/264](https://doi.org/10.24963/ijcai.2019/264).
-  — 확산/adaptive 인접행렬 STGNN과 METR-LA/PEMS-BAY 벤치마크·기준선 정의.
 
 ## 데이터 출처·라이선스
 - **코드(이 저장소):** **MIT License** — [`LICENSE`](LICENSE) 참조. 우리가 작성한 스크립트·지표·config에 적용.
