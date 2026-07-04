@@ -9,7 +9,7 @@ ML/DL/RL 최근 돌파 사례를 **SLAM·도시·공간지능 방향으로 재�
 ## 과제 목록
 | 과제 | 방향 | 상태 |
 |---|---|---|
-| [task-01 OccWorld](tasks/task-01-occworld-spatial) | 3D 점유 월드모델 | **Phase 0 (스캐폴딩)** |
+| [task-01 OccWorld](tasks/task-01-occworld-spatial) | 3D 점유 월드모델 | **Phase 1 완료 · Phase 2 부분(추론 미확보)** |
 | task-02 STGNN | 도시 교통 시공간 예측 | 미착수 |
 | task-03 Cross-Embodiment Nav | 교차 임바디먼트 내비 | 미착수 |
 | task-04 PointMamba/SLAM | Mamba 기반 LiDAR·점군 | 미착수 |
@@ -35,3 +35,8 @@ ml-repro/
 - 논문·라이선스 인용 유지.
 
 자세한 내용은 [`PROJECT_GUIDELINE.md`](PROJECT_GUIDELINE.md) 참조.
+
+## Contact / Author
+- **Author:** urbsn4i-sw (GitHub)
+- **Email:** urban4i.sw@gmail.com
+- 문의·재현 이슈는 GitHub Issues 또는 위 이메일로. 학습·재현 목적의 비상업 저장소입니다.
