@@ -54,9 +54,17 @@ python tasks/task-01-occworld-spatial/scripts/eval_occ_baseline.py
 ```
 상세: [`PROJECT_GUIDELINE.md`](PROJECT_GUIDELINE.md), 과제 카드 [`tasks/task-01-occworld-spatial/README.md`](tasks/task-01-occworld-spatial/README.md).
 
-## 논문
-- **앵커:** Hafner et al. (2025). *Mastering diverse control tasks through world models.* **Nature 640, 647–653.** DOI [10.1038/s41586-025-08744-2](https://doi.org/10.1038/s41586-025-08744-2). (DreamerV3)
-- **브리지:** Zheng et al. (2024). *OccWorld.* **ECCV 2024.** arXiv [2311.16038](https://arxiv.org/abs/2311.16038).
+## References (인용 논문)
+> 이 목록은 현재 구현된 **과제 01 기준**이다. 과제 02~04는 계획 단계로, 착수 시 해당 논문을 추가한다. BibTeX: [`CITATIONS.md`](CITATIONS.md).
+
+- **[앵커]** Hafner, D., Pasukonis, J., Ba, J., & Lillicrap, T. (2025). *Mastering diverse control tasks through world models.* **Nature, 640, 647–653.** DOI [10.1038/s41586-025-08744-2](https://doi.org/10.1038/s41586-025-08744-2) [SCI(E)].
+  — DreamerV3: 이 프로젝트가 축소 재현하는 월드모델 원리.
+- **[브리지]** Zheng, W., Chen, W., Huang, Y., Zhang, B., Duan, Y., & Lu, J. (2024). *OccWorld: Learning a 3D Occupancy World Model for Autonomous Driving.* **ECCV 2024.** arXiv [2311.16038](https://arxiv.org/abs/2311.16038), DOI [10.1007/978-3-031-72624-8_4](https://doi.org/10.1007/978-3-031-72624-8_4).
+  — 우리가 따르는 구체 모델 구조와 Copy&Paste 기준선 정의.
+- **[데이터셋]** Caesar, H., et al. (2020). *nuScenes: A multimodal dataset for autonomous driving.* **CVPR 2020, 11618–11628.** DOI [10.1109/CVPR42600.2020.01164](https://doi.org/10.1109/CVPR42600.2020.01164).
+  — 기반 주행 데이터셋(우리는 ego 궤적에 v1.0-mini 서브셋 사용).
+- **[점유 라벨]** Tian, X., Jiang, T., Yun, L., Wang, Y., Wang, Y., & Zhao, H. (2023). *Occ3D: A Large-Scale 3D Occupancy Prediction Benchmark for Autonomous Driving.* arXiv [2304.14365](https://arxiv.org/abs/2304.14365).
+  — mIoU/IoU에 쓰는 3D 시맨틱 점유 정답(`gts`)의 출처.
 
 ## 데이터 출처·라이선스
 - **코드(이 저장소):** **MIT License** — [`LICENSE`](LICENSE) 참조. 우리가 작성한 스크립트·지표·config에 적용.

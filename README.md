@@ -54,9 +54,17 @@ python tasks/task-01-occworld-spatial/scripts/eval_occ_baseline.py
 ```
 Details: [`PROJECT_GUIDELINE.md`](PROJECT_GUIDELINE.md), task card [`tasks/task-01-occworld-spatial/README.md`](tasks/task-01-occworld-spatial/README.md).
 
-## Papers
-- **Anchor:** Hafner et al. (2025). *Mastering diverse control tasks through world models.* **Nature 640, 647–653.** DOI [10.1038/s41586-025-08744-2](https://doi.org/10.1038/s41586-025-08744-2). (DreamerV3)
-- **Bridge:** Zheng et al. (2024). *OccWorld.* **ECCV 2024.** arXiv [2311.16038](https://arxiv.org/abs/2311.16038).
+## References
+> This list covers **Task 01 only** (currently implemented). Tasks 02–04 are at the planning stage; their papers will be added when work starts. BibTeX: [`CITATIONS.md`](CITATIONS.md).
+
+- **[Anchor]** Hafner, D., Pasukonis, J., Ba, J., & Lillicrap, T. (2025). *Mastering diverse control tasks through world models.* **Nature, 640, 647–653.** DOI [10.1038/s41586-025-08744-2](https://doi.org/10.1038/s41586-025-08744-2) [SCI(E)].
+  — DreamerV3: the world-model principle this project reproduces at small scale.
+- **[Bridge]** Zheng, W., Chen, W., Huang, Y., Zhang, B., Duan, Y., & Lu, J. (2024). *OccWorld: Learning a 3D Occupancy World Model for Autonomous Driving.* **ECCV 2024.** arXiv [2311.16038](https://arxiv.org/abs/2311.16038), DOI [10.1007/978-3-031-72624-8_4](https://doi.org/10.1007/978-3-031-72624-8_4).
+  — The concrete model architecture and Copy&Paste baseline definition we follow.
+- **[Dataset]** Caesar, H., et al. (2020). *nuScenes: A multimodal dataset for autonomous driving.* **CVPR 2020, 11618–11628.** DOI [10.1109/CVPR42600.2020.01164](https://doi.org/10.1109/CVPR42600.2020.01164).
+  — Base driving dataset (we use the v1.0-mini subset for ego trajectories).
+- **[Occupancy labels]** Tian, X., Jiang, T., Yun, L., Wang, Y., Wang, Y., & Zhao, H. (2023). *Occ3D: A Large-Scale 3D Occupancy Prediction Benchmark for Autonomous Driving.* arXiv [2304.14365](https://arxiv.org/abs/2304.14365).
+  — Source of the 3D semantic occupancy ground truth (`gts`) used for mIoU/IoU.
 
 ## Data sources & license
 - **Code (this repo):** **MIT License** — see [`LICENSE`](LICENSE). Applies to our own scripts, metrics, and configs.
