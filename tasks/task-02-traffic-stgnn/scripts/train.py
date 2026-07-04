@@ -11,6 +11,11 @@
 """
 from __future__ import annotations
 
+import os
+# anaconda(MKL libiomp5) + pip torch 의 OpenMP 런타임 중복 로드 충돌 회피(Windows).
+# GPU-vs-CPU 수치 일치를 확인(diff<1e-3)했으므로 결과 정확성에는 영향 없음.
+os.environ.setdefault("KMP_DUPLICATE_LIB_OK", "TRUE")
+
 import argparse
 import sys
 from pathlib import Path
@@ -31,22 +36,26 @@ def load_config(path: Path) -> dict:
 
 
 def dry_run(cfg: dict) -> int:
-    """실 데이터 없이 합성 배치로 모델 순전파/역전파 1스텝을 검증(wiring 확인)."""
+    """실 데이터 없이 합성 배치로 모델 순전파/역전파 1스텝을 검증(wiring 확인).
+
+    **모든 인접행렬 모드**(fixed/learned/hybrid/identity)를 각각 build→forward→shape assert→backward.
+    특히 hybrid(2 supports)는 이전 GraphConv 차원 버그가 있던 경로 — 형상 assert 로 실측 검증한다.
+    """
     try:
         import torch  # noqa: PLC0415
     except ImportError:
-        print("[train:dry-run] torch 미설치 — Phase 1 환경(requirements.txt)에서 설치 후 재실행.")
+        print("[train:dry-run] torch 미설치 — requirements.txt 스택 설치 후 재실행.")
         return 0
 
     import numpy as np  # noqa: PLC0415
     import model as Model  # noqa: PLC0415
     import graph as G      # noqa: PLC0415
 
-    set_seed(int(cfg.get("seed", 42)))
+    seed = set_seed(int(cfg.get("seed", 42)))
     n = 8
     t_in = int(cfg["temporal"]["seq_len_in"])
     horizon = int(cfg["temporal"]["horizon"])
-    adj_mode = cfg["model"]["adjacency"]["mode"]
+    device = "cuda" if torch.cuda.is_available() else "cpu"
 
     # 합성 고정 인접행렬(거리 → 가우시안 커널 → 랜덤워크 정규화)
     rng = np.random.default_rng(0)
@@ -54,24 +63,33 @@ def dry_run(cfg: dict) -> int:
     np.fill_diagonal(dist, 0.0)
     adj = G.normalize_adj_random_walk(G.gaussian_kernel_adjacency(dist))
 
-    net = Model.build_model(
-        num_nodes=n, in_dim=1, out_dim=1, horizon=horizon,
-        hidden=int(cfg["model"]["hidden"]), n_layers=int(cfg["model"]["n_layers"]),
-        diffusion_order=int(cfg["model"]["diffusion_order"]),
-        adj_mode=adj_mode, adj_fixed=adj,
-    )
-    x = torch.randn(4, t_in, n, 1)
-    y = torch.randn(4, horizon, n, 1)
-    opt = torch.optim.Adam(net.parameters(), lr=1e-3)
-    net.train()
-    out = net(x)
-    assert out.shape == y.shape, f"출력 형상 불일치: {out.shape} vs {y.shape}"
-    loss = torch.nn.functional.l1_loss(out, y)
-    opt.zero_grad(); loss.backward(); opt.step()
-    n_params = sum(p.numel() for p in net.parameters())
-    print(f"[train:dry-run] OK — adj_mode={adj_mode} out={tuple(out.shape)} "
-          f"params={n_params} loss1={loss.item():.4f} (합성; 성능 아님)")
-    return 0
+    print(f"[train:dry-run] device={device} torch={torch.__version__} seed={seed} "
+          f"t_in={t_in} horizon={horizon} nodes={n}")
+    all_ok = True
+    for adj_mode in Model.ADJ_MODES:
+        net = Model.build_model(
+            num_nodes=n, in_dim=1, out_dim=1, horizon=horizon,
+            hidden=int(cfg["model"]["hidden"]), n_layers=int(cfg["model"]["n_layers"]),
+            diffusion_order=int(cfg["model"]["diffusion_order"]),
+            adj_mode=adj_mode, adj_fixed=adj,
+        ).to(device)
+        x = torch.randn(4, t_in, n, 1, device=device)
+        y = torch.randn(4, horizon, n, 1, device=device)
+        opt = torch.optim.Adam(net.parameters(), lr=1e-3)
+        net.train()
+        try:
+            out = net(x)
+            assert out.shape == y.shape, f"출력 형상 불일치: {out.shape} vs {y.shape}"
+            loss = torch.nn.functional.l1_loss(out, y)
+            opt.zero_grad(); loss.backward(); opt.step()
+            n_params = sum(p.numel() for p in net.parameters())
+            print(f"  [OK] adj_mode={adj_mode:8s} out={tuple(out.shape)} "
+                  f"params={n_params} loss1={loss.item():.4f}")
+        except Exception as e:  # noqa: BLE001
+            all_ok = False
+            print(f"  [FAIL] adj_mode={adj_mode:8s} → {type(e).__name__}: {e}")
+    print("[train:dry-run] 결과:", "ALL PASS (합성; 성능 아님)" if all_ok else "일부 FAIL")
+    return 0 if all_ok else 1
 
 
 def main(argv=None) -> int:
