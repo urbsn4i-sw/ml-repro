@@ -14,15 +14,20 @@ set -euo pipefail
 
 SUBSET="metr-la"
 DATA_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)/data"
+FETCH=0
+# DCRNN(liyaguang/DCRNN) README 가 안내하는 공식 Google Drive 폴더 id (metr-la.h5·pems-bay.h5 포함)
+DCRNN_DRIVE_FOLDER="10FOTa6HXPqX8Pf5WRoRwcFnW9BrNZEIX"
 
 usage() {
   cat <<EOF
-사용법: bash download_data.sh [--subset metr-la|pems-bay] [--data-root PATH]
+사용법: bash download_data.sh [--subset metr-la|pems-bay] [--data-root PATH] [--fetch]
 
   --subset     metr-la(기본, 207센서) | pems-bay(325센서)
   --data-root  데이터 저장 위치 (기본: tasks/task-02-*/data)
+  --fetch      (opt-in) 공식 DCRNN Google Drive 폴더에서 gdown 으로 .h5 취득 시도.
+               연구용 공개 데이터에 한함. 기본은 안내+배치검증만(자동 다운로드 안 함).
 
-이 스크립트는 자동 다운로드를 하지 않는다. 취득 절차 안내 + 배치 검증만 수행한다.
+--fetch 없이는 자동 다운로드를 하지 않는다(안내 + 배치 검증만).
 EOF
 }
 
@@ -30,10 +35,25 @@ while [[ $# -gt 0 ]]; do
   case "$1" in
     --subset) SUBSET="$2"; shift 2 ;;
     --data-root) DATA_ROOT="$2"; shift 2 ;;
+    --fetch) FETCH=1; shift ;;
     -h|--help) usage; exit 0 ;;
     *) echo "알 수 없는 인자: $1"; usage; exit 1 ;;
   esac
 done
+
+# opt-in 취득: 공식 DCRNN Drive 폴더에서 gdown 으로 .h5 내려받기(연구용 공개 데이터).
+# 재현 기록: Phase 1 에서 실제 이 방법(gdown --folder <공식 id>)으로 metr-la.h5 취득 성공.
+fetch_gdown() {
+  echo "[fetch] 공식 DCRNN Google Drive 폴더에서 gdown 으로 취득 시도(연구용 공개 데이터)."
+  if ! python -c "import gdown" >/dev/null 2>&1; then
+    echo "[fetch] gdown 미설치 → 'pip install gdown' 후 재실행하거나, 브라우저로 직접 취득해 배치하세요." >&2
+    return 1
+  fi
+  mkdir -p "${DATA_ROOT}"
+  ( cd "${DATA_ROOT}" && python -m gdown --folder \
+      "https://drive.google.com/drive/folders/${DCRNN_DRIVE_FOLDER}" -O . )
+  echo "[fetch] 완료(또는 부분). 아래 배치 검증으로 결과 확인. 받은 .h5 는 .gitignore 로 커밋 차단됨."
+}
 
 echo "[download] subset=${SUBSET}  data_root=${DATA_ROOT}"
 mkdir -p "${DATA_ROOT}"
@@ -108,6 +128,10 @@ print_tou
 echo ""
 print_layout
 echo ""
+if [[ "${FETCH}" -eq 1 ]]; then
+  fetch_gdown || echo "[fetch] 자동 취득 실패/미완 — 정직하게 보고하고 수동 취득으로 진행하세요."
+  echo ""
+fi
 if check_present; then
   echo "[check] 필수 파일이 존재합니다. (Phase 1 윈도우 생성/학습으로 진행 가능)"
 else

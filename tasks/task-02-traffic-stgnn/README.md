@@ -1,6 +1,7 @@
 # Task 02 — 도시 교통 시공간 예측 (STGNN) · Spatiotemporal Forecasting
 
-> 상태: **Phase 0 (스캐폴딩)**. 데이터·가중치 미취득, 학습·평가 미실행. 아래 결과 표는 실측 후에만 채운다.
+> 상태: **Phase 1 진행 — 데이터 취득 + 기준선 실측 완료**. METR-LA 실데이터로 copy-last·seasonal-HA
+> 실측(아래 결과 표). STGNN 실제 학습은 **Phase 2** 로 이월. 데이터·가중치는 커밋하지 않는다(.gitignore).
 
 ## 과제 카드 (12항목)
 - **과제명 / 방향:** 과제02 — 도시 교통 시공간 예측 · 그래프 신경망(STGNN)
@@ -88,52 +89,84 @@
 python -m venv .venv-traffic && source .venv-traffic/bin/activate   # Windows: .venv-traffic\Scripts\activate
 pip install -r tasks/task-02-traffic-stgnn/requirements.txt
 
-# 1) 데이터(연구용 공개) — Phase 1
-bash scripts/download_data.sh --subset metr-la      # 자동 다운로드 안 함(안내+배치검증)
+# 1) 데이터(연구용 공개, METR-LA) — Phase 1 실제 취득 방법(gdown, 공식 DCRNN Drive 폴더)
+pip install gdown
+bash scripts/download_data.sh --subset metr-la --fetch   # opt-in 취득 + 배치검증
+#   (--fetch 없이 실행하면 안내+배치검증만. 데이터는 data/ 로 gitignore 차단, 커밋 안 함)
 
-# 2) 스모크런 — 구현됨: 합성 시계열로 기준선→지표 파이프라인 검증(실데이터·모델 불필요, numpy)
+# 2) 스모크런 — 합성 시계열로 기준선→지표 파이프라인 검증(실데이터·모델 불필요, numpy)
 bash scripts/smoke.sh
 
-# 3) 모델 wiring 검증(선택, torch 필요) — 합성 배치 1스텝 순전파/역전파
+# 3) 기준선 실측(Phase 1) — 실 METR-LA test split, MAE/RMSE/MAPE @3/6/12 + 오차 누적
+python scripts/eval_baselines.py            # → results/<run_id>/{metrics.json,summary.md}
+
+# 4) 모델 wiring 검증(선택, torch 필요) — 합성 배치 1스텝 순전파/역전파
 python scripts/train.py --dry-run
 
-# 4) 기준선 → 본 학습 → 평가 — Phase 1
+# 5) STGNN 학습 → 평가 — Phase 2 (예정)
 # python scripts/train.py --config config/base.yaml
 # python scripts/eval.py  --config config/base.yaml --ckpt results/<run_id>/best.pt
 ```
 
 ## 실행 계획 (Phase)
-- **Phase 0 (스캐폴딩):** 로컬 3060. ✅ 이 커밋 — 폴더/지표/기준선/모델 골격/스모크/문서.
-- **Phase 1 (데이터·기준선·STGNN 학습·평가):** 로컬 3060. ⏳ 예정 — METR-LA 취득 → HA/copy-last 실측
-  → 소형 STGNN 실제 학습 → horizon 3/6/12 평가 → 절제(인접행렬 모드) → 오차 누적 분석.
+- **Phase 0 (스캐폴딩):** 로컬 3060. ✅ 완료 — 폴더/지표/기준선/모델 골격/스모크/문서.
+- **Phase 1 (데이터 취득 + 기준선 실측):** 로컬(CPU). ✅ 완료 — METR-LA 취득(gdown, 연구용 공개) →
+  윈도우 12→12·시간순 70/10/20 분할·z-score 스케일러(train만) → copy-last·seasonal-HA 실측 →
+  horizon 3/6/12 MAE/RMSE/MAPE + 오차 누적(RQ2). 재현: `python scripts/eval_baselines.py`.
+- **Phase 2 (STGNN 학습·절제):** 로컬 3060. ⏳ 예정 — 소형 STGNN 실제 학습 → 기준선 대비 →
+  인접행렬 fixed/learned 절제(RQ1) → 하드웨어(VRAM/시간) 기록.
 
-## 결과 (실제 실행값만 기입) — *Phase 1 실측 후 채움*
-| 모델 | MAE@15m | MAE@30m | MAE@60m | RMSE@60m | MAPE@60m | 하드웨어 | 비고 |
-|---|---|---|---|---|---|---|---|
-| Historical Average | — | — | — | — | — | | Phase 1 |
-| copy-last | — | — | — | — | — | | Phase 1 |
-| STGNN (fixed adj) | — | — | — | — | — | | Phase 1 (RQ1) |
-| STGNN (learned adj) | — | — | — | — | — | | Phase 1 (RQ1) |
+## 결과 (실제 실행값만 기입) — Phase 1, 실 METR-LA **test** split (6,850 윈도우), 원 단위(mph)·masked
+> 재현: `python scripts/eval_baselines.py` → `results/<run_id>/{metrics.json,summary.md}`
+> (seed=42, 시간순 train 23,974 / val 3,425 / test 6,850, 결측=0 마스크).
+
+| 모델 | MAE@15m | MAE@30m | MAE@60m | RMSE@60m | MAPE@60m(%) | MAE 기울기(스텝당) |
+|---|---|---|---|---|---|---|
+| copy-last (persistence) | 4.017 | 5.094 | 6.795 | 14.209 | 16.71 | **+0.332** (누적) |
+| seasonal-HA (DCRNN 정의) | 4.187 | 4.187 | 4.187 | 7.852 | 13.03 | ~0.000 (평탄) |
+| STGNN (fixed adj) | — | — | — | — | — | — (Phase 2, RQ1) |
+| STGNN (learned adj) | — | — | — | — | — | — (Phase 2, RQ1) |
+| *(참조용)* *논문 HA (Li+ 2018 Table 1)* | *4.16* | *4.16* | *4.16* | *7.80* | *13.0* | *~0 (평탄)* |
+
+> ⚠️ 논문 HA 는 **참조용**(full METR-LA, HA 주기/결측처리 세부 차이). 우리 seasonal-HA(4.19)와 근접하나
+> 직접 비교는 주의하며 **우리 결과로 옮겨 적지 않는다**. copy-last 는 논문 미보고(참조값 없음).
+
+### RQ2 — 다단계 오차 누적 (기준선에서 먼저 관찰)
+- **copy-last:** MAE 가 지평 따라 **단조 증가** 3.05→…→6.80(@5→@60분), 스텝당 +0.332, @60분/@5분 **2.23×**.
+  persistence 는 시간이 갈수록 마지막 관측이 낡아 오차가 쌓인다 — 전형적 누적.
+- **seasonal-HA:** MAE 가 모든 지평에서 **평탄**(≈4.19, 기울기 0). 타깃 시각의 주(week) 계절 슬롯만
+  보므로 "얼마나 먼 미래냐"와 무관 → 누적 없음.
+- 대조 요지: **오차 누적은 예측 방식의 성질**이다. Phase 2 STGNN 이 이 누적을 얼마나 완화하는지가 관전 포인트.
 
 ## 한계 / 미확인
-- 아직 **데이터 미취득·학습 미실행**(Phase 0). 위 결과 표는 전부 공란(값 지어내지 않음).
+- **STGNN 미학습**(Phase 2). 위 결과 표의 STGNN 행은 공란(값 지어내지 않음). 현재는 기준선만 실측.
 - STGNN(`src/model.py`)은 **import 만 검증된 골격**이다(로컬에 torch 미설치). 순전파/형상·학습·성능은
-  Phase 1(torch 설치, `python scripts/train.py --dry-run` 이 형상 assert 로 검증) 에서 확인한다.
-- `smoke.sh` 수치는 합성 더미이며 성능 보고가 아니다(`synthetic_dummy=true`).
-- Historical Average 는 현재 단순형(관측 평균) — 계절형(요일×시간대)은 Phase 1 확장 예정.
+  Phase 2(torch 설치 후 `python scripts/train.py --dry-run` 형상 assert → 실학습) 에서 확인한다.
+- **seasonal-HA vs 논문 HA**: 4.19 vs 4.16 으로 근접하나 HA 주기(주간)·결측 마스킹 구현 차이가 있어
+  **직접 비교 아님**(참조용). copy-last 는 논문 미보고라 참조값 자체가 없음.
+- **PEMS-BAY 미실측**: 파일은 취득했으나(gitignore) 이번 실측은 METR-LA 만. PEMS-BAY 는 Phase 2 확장.
+- **z-score 스케일러는 저장만**(`data/processed/scaler.json`, gitignore) — Phase 2 STGNN 학습용이며 기준선
+  지표는 원 단위(mph)로 계산했다.
+- `smoke.sh` 수치는 합성 더미이며 성능 보고가 아니다(`synthetic_dummy=true`, 위 실측과 별개).
 
-## 완료 정의 (DoD) 체크 — *Phase 0 시점*
-**Phase 0 범위 내 — 완료**
+## 완료 정의 (DoD) 체크
+**Phase 0 (스캐폴딩) — 완료**
 - [x] `smoke.sh` 통과(합성 기준선→지표 파이프라인, numpy-only)
-- [x] 지표(MAE/RMSE/MAPE masked, 지평별)·기준선(HA·copy-last)·STGNN 골격·그래프 유틸 구현
+- [x] 지표(MAE/RMSE/MAPE masked, 지평별)·기준선(copy-last·HA)·STGNN 골격·그래프 유틸 구현
 - [x] 시드 고정(`common/seeding.py`) + 경량 환경 파일(`requirements.txt`, 과제01과 분리)
 - [x] 데이터 git 미포함(.gitignore 차단) + `download_data.sh` + 라이선스 명시
 - [x] 앵커/브리지 논문 인용(GraphCast DOI·SCI(E) O / DCRNN·Graph WaveNet)
 - [x] GraphCast 격자→그래프→롤아웃 개념 대응 문서화(RQ3)
 
-**미완 — Phase 1 이월** (Phase 0 범위 밖)
-- [ ] METR-LA/PEMS-BAY 취득 + HA/copy-last **실측**
+**Phase 1 (데이터 취득 + 기준선 실측) — 완료**
+- [x] METR-LA 취득(gdown, 연구용 공개) — data/(gitignore), 커밋 없음. 검증 (T,N)=(34272,207)·결측 8.11%
+- [x] 전처리: 윈도우 12→12 · 시간순 70/10/20 · z-score 스케일러(train만, 저장)
+- [x] copy-last·seasonal-HA **실측** — MAE/RMSE/MAPE @15/30/60분 (`results/`, 실제 값)
+- [x] 다단계 오차 누적(RQ2) 기준선에서 관찰·기록 — copy-last 누적 vs HA 평탄
+- [x] 논문값은 참조용으로만 분리 표기(직접 비교 주의)
+
+**미완 — Phase 2 이월**
 - [ ] 소형 STGNN **실제 학습** + 기준선 대비 지표 표(results/, 실제 값)
 - [ ] 절제 실험(인접행렬 fixed/learned/hybrid/identity) 실측 — RQ1
-- [ ] 다단계 오차 누적 실측·시각화 — RQ2
 - [ ] 게이밍PC(3060 8GB) 실제 학습 시간·VRAM 기록
+- [ ] (선택) PEMS-BAY 확장
