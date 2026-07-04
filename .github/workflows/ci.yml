@@ -1,0 +1,37 @@
+# CI — lightweight check for the baseline/metrics code only.
+#
+# 범위(scope): 기준선·지표 코드(common/*, tasks/*/src, scripts)가 안 깨지는지만 확인한다.
+#   - OccWorld 추론 스택(mmcv/mmdet3d/spconv, py3.8)은 로컬·수동 실행 대상이라 CI 대상이 아니다.
+#   - 따라서 무거운 conda 환경(environment.yml)은 CI에서 설치하지 않는다(설치 실패로 매번 red 방지).
+#   - 여기서 도는 것은 numpy만으로 동작하는 합성 더미 파이프라인과 정적 린트뿐.
+name: CI (baseline code, lightweight)
+
+on: [push, pull_request]
+
+jobs:
+  lint-and-smoke:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python 3.10
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+
+      - name: Install minimal deps (baseline metrics only, no heavy stack)
+        run: |
+          python -m pip install --upgrade pip
+          pip install numpy pyyaml flake8
+
+      - name: Lint — fatal errors only (syntax / undefined names)
+        run: |
+          flake8 common tasks --count --select=E9,F63,F7,F82 --show-source --statistics
+
+      - name: Import check — common utils import without heavy deps
+        run: |
+          python -c "import common.metrics, common.seeding, common.hub; print('imports OK')"
+
+      - name: Smoke — synthetic dummy baseline -> metrics pipeline (numpy-only)
+        run: |
+          bash tasks/task-01-occworld-spatial/scripts/smoke.sh
