@@ -1,13 +1,15 @@
 # 프로젝트 지침 (PROJECT_GUIDELINE) — ML 재현 과제 실행용
 
-> 이 문서는 앞서 정리한 **재설계 과제(1: 3D 점유 월드모델 / 2: 도시 교통 시공간 예측 / 3: 교차 임바디먼트 내비 / 4: Mamba 기반 LiDAR·점군)** 를 GitHub + HuggingFace에서 Claude Code 또는 Codex로 **축소 재현·공개**하기 위한 실행 규약이다.
+> 이 문서는 **3D 점유 월드모델(OccWorld / DreamerV3)** 을 GitHub + HuggingFace에서 Claude Code 또는 Codex로 **축소 재현·공개**하기 위한 실행 규약이다.
 > 사람과 AI 에이전트가 함께 읽는 "프로젝트 헌법 + 운영 매뉴얼"이다. 세부 코딩 규칙은 `.claude/rules/`(Claude Code)와 `AGENTS.md`(Codex)에 동기화한다.
+>
+> **범위 안내:** 이 저장소는 OccWorld 재현에 집중한다. 원래 더 큰 재현 시리즈의 일부였고, **도시 교통 예측**은 별도 저장소([urban-traffic-forecasting](https://github.com/urbsn4i-sw/urban-traffic-forecasting))로 분리됐다. 교차 임바디먼트 내비·LiDAR 점군은 계획 단계이며, 착수 시 각각 별도 저장소로 진행한다. (아래 규약의 재현성·정직성·아티팩트 원칙은 그 후속 저장소에도 그대로 적용되는 범용 규약이다.)
 
 ---
 
 ## 0. 적용 범위와 기본 전제
 - **목표:** 각 과제를 게이밍 PC / Colab 수준에서 돌아가는 **축소 재현 리포**로 구현하고, GitHub 공개 + (선택)HuggingFace Hub 배포까지 한다. SOTA 재현이 아니라 **원리 재현·학습**이 목적이다.
-- **기본 구조:** 모노레포(하나의 저장소에 과제별 폴더). 과제별로 저장소를 나누고 싶으면 `tasks/<id>/`를 각각 독립 리포로 승격하면 된다.
+- **기본 구조:** 이 저장소는 OccWorld 재현 단일 과제(`tasks/task-01-occworld-spatial/`)에 집중한다. (원래 모노레포 계획이었으며, 완결된 과제는 독립 저장소로 승격한다 — 예: 교통 예측 → `urban-traffic-forecasting`.)
 - **언어:** 문서·주석·커밋 메시지는 한국어 기본(영문 병기 허용). 식별자·경로는 영문.
 
 ## 1. 최우선 원칙 (에이전트가 반드시 지킴)
@@ -39,20 +41,18 @@ repo-root/
 │  ├─ metrics.py
 │  └─ hub.py
 └─ tasks/
-   ├─ task-01-occworld-spatial/
-   │  ├─ README.md            # 12항목 과제 카드 + 재현 명령 + DoD 체크
-   │  ├─ config/              # yaml 설정(하이퍼파라미터)
-   │  ├─ src/                 # 모델/데이터/학습 로직
-   │  ├─ scripts/             # download_data.sh, train.py, eval.py, smoke.sh
-   │  ├─ notebooks/           # 축소 재현 데모(Colab 가능)
-   │  ├─ results/             # metrics.json, 표(csv/md), 작은 figure만
-   │  ├─ MODEL_CARD.md        # (배포 시) 모델 카드
-   │  └─ DATASET_CARD.md      # (해당 시) 데이터 카드
-   ├─ task-02-traffic-stgnn/
-   ├─ task-03-crossembodiment-nav/
-   └─ task-04-pointmamba-slam/
+   └─ task-01-occworld-spatial/
+      ├─ README.md            # 12항목 과제 카드 + 재현 명령 + DoD 체크
+      ├─ config/              # yaml 설정(하이퍼파라미터)
+      ├─ src/                 # 모델/데이터/학습 로직
+      ├─ scripts/             # download_data.sh, train.py, eval.py, smoke.sh
+      ├─ notebooks/           # 축소 재현 데모(Colab 가능)
+      ├─ results/             # metrics.json, 표(csv/md), 작은 figure만
+      ├─ MODEL_CARD.md        # (배포 시) 모델 카드
+      └─ DATASET_CARD.md      # (해당 시) 데이터 카드
 ```
 - 루트 문서는 **작고 안정적**으로 유지한다. 깊고 경로별인 규칙은 `.claude/rules/`로 분리한다.
+- 완결된 다른 과제는 독립 저장소로 분리한다(교통 예측 → [urban-traffic-forecasting](https://github.com/urbsn4i-sw/urban-traffic-forecasting)). nav/LiDAR 는 계획 단계.
 
 ## 3. 환경·재현성 규약
 - **Python 버전 고정**(예: 3.10/3.11), 의존성은 **핀 버전**으로 기록(`requirements.txt` 또는 `environment.yml`).
@@ -66,7 +66,7 @@ repo-root/
 - **데이터 취득**: `scripts/download_data.sh`로 원 출처 또는 **HF `datasets`/Hub**에서 내려받는다. 항상 **소규모 서브셋 옵션**을 제공(`--subset mini`).
 - **가중치/모델 공유**: 학습 결과 가중치는 **HF Hub 모델 리포**로 push(`huggingface_hub`), README에 `MODEL_CARD.md` 포함. git엔 다운로드/업로드 스크립트만.
 - **결과물 커밋 대상**: `metrics.json`, 지표 표(csv/md), 소형 figure(수백 KB) 등 **작은 산출물만**.
-- **라이선스·이용약관 명시**: 과제별로 데이터 라이선스를 README에 적는다. 특히 **nuScenes/Occ3D는 비상업 라이선스·등록 필요**, **METR-LA/PEMS-BAY·ModelNet40·ShapeNet 등은 연구용 공개**. Open X-Embodiment는 하위 데이터셋별 라이선스가 다르므로 사용한 서브셋의 라이선스를 각각 표기.
+- **라이선스·이용약관 명시**: 데이터 라이선스를 README에 적는다. 이 저장소가 쓰는 **nuScenes/Occ3D는 비상업 라이선스·등록 필요**다(원데이터·라벨 미포함).
 - **LFS는 최소화**: 정말 저장소에 둬야 할 중간 크기 산출물만 `.gitattributes`로 LFS 지정. 원칙은 "Hub에 두고 링크".
 
 ## 5. 과제 1건 실행 프로토콜 (표준 워크플로우)
@@ -76,7 +76,7 @@ repo-root/
 3. **브랜치** — `feat/task-01-occworld` 형태.
 4. **데이터** — `download_data.sh --subset mini` 로 소규모만.
 5. **기준선 먼저** — 단순 기준선(예: copy-last, Historical Average, 무작위 스캔, 단일 도메인)부터 구현·측정. 이게 "비교 기준"이자 파이프라인 검증.
-6. **본 모델** — 공개 구현(OccWorld / DCRNN·Graph WaveNet / OXE 정책 / PointMamba)을 통합하거나 축소 구현.
+6. **본 모델** — 공개 구현(OccWorld)을 통합하거나 축소 구현.
 7. **평가** — `eval.py` → `results/metrics.json` + 지표 표(과제별 표준 지표: §8).
 8. **데모 노트북** — Colab에서 돌아가는 축소 재현 노트북.
 9. **문서화** — README 재현 명령, (배포 시) MODEL_CARD/DATASET_CARD 갱신.
@@ -102,23 +102,20 @@ repo-root/
 - **CI에 강제 규칙 이관**: "반드시" 규칙(포맷·린트·비밀 스캔·대용량 차단)은 문서 문구가 아니라 pre-commit/CI로 강제.
 - **동기화**: `CLAUDE.md`와 `AGENTS.md`는 항상 동일 내용 유지. 규칙을 바꾸면 둘 다 수정.
 
-## 8. 과제별 표준 지표·데이터·대표 논문 (요약 표)
+## 8. 표준 지표·데이터·대표 논문 (이 저장소)
 
 | 과제 | 표준 지표 | 축소 데이터 | 앵커 논문 | 브리지 논문 |
 |---|---|---|---|---|
-| 01 점유 월드모델 | 미래 mIoU, ego L2, 충돌률, 롤아웃 안정성 | nuScenes mini + Occ3D | Hafner+ 2025, *Nature*, 10.1038/s41586-025-08744-2 (SCI(E)) | Zheng+ 2024 *OccWorld*, ECCV, arXiv:2311.16038 |
-| 02 교통 STGNN | MAE/RMSE/MAPE (h=3/6/12) | METR-LA, PEMS-BAY | Lam+ 2023, *Science*, 10.1126/science.adi2336 (SCI(E)) | Li+ 2018 *DCRNN* ICLR / Wu+ 2019 *Graph WaveNet* IJCAI |
-| 03 교차 임바디먼트 내비 | 성공률, 미학습 도메인 성공률, ATE/RPE | OXE 서브셋 (+Habitat/KITTI) | O'Neill+ 2024 *Open X-Embodiment*, ICRA, 10.1109/ICRA57147.2024.10611477 | (앵커=브리지) |
-| 04 PointMamba/SLAM | OA/mIoU/mAP, 처리량, 메모리, 길이 스케일링 | ModelNet40, ShapeNetPart (+SemanticKITTI 소셋) | Gu&Dao 2024 *Mamba*, COLM, arXiv:2312.00752 | Liang+ 2024 *PointMamba*, NeurIPS, arXiv:2402.10739 |
+| 점유 월드모델 (OccWorld) | 미래 mIoU, ego L2, 충돌률, 롤아웃 안정성 | nuScenes mini + Occ3D | Hafner+ 2025, *Nature*, 10.1038/s41586-025-08744-2 (SCI(E)) | Zheng+ 2024 *OccWorld*, ECCV, arXiv:2311.16038 |
+
+> 다른 과제는 별도 저장소로 분리됨: **교통 예측**(MAE/RMSE/MAPE · METR-LA · GraphCast/DCRNN/Graph WaveNet) → [urban-traffic-forecasting](https://github.com/urbsn4i-sw/urban-traffic-forecasting). 교차 임바디먼트 내비·LiDAR 점군은 계획 단계(착수 시 별도 저장소·해당 논문 명시).
 
 ## 9. Claude Code / Codex 세팅 방법
 - **Claude Code**: 루트에 `CLAUDE.md`(자동 로드, 세션 시작 시 주입) + `.claude/rules/*.md`(모듈 규칙, 경로 스코프 가능). 개인 로컬 설정은 `CLAUDE.local.md`(자동 gitignore). `claude` 실행 후 `/init`로 초안 생성 → 이 지침 기준으로 수정. 최신 규약은 공식 문서(code.claude.com/docs/en/memory) 확인.
 - **Codex**: 루트에 `AGENTS.md`(= CLAUDE.md 동기화본)를 둔다. Codex는 이 파일을 프로젝트 규약으로 읽는다. 최신 규약은 OpenAI Codex 문서 확인.
 - 두 도구를 함께 쓰면 **한쪽에서 규칙을 바꿀 때 반드시 다른 쪽도 갱신**한다(§7).
 
-## 10. 시작하는 법 (초기 부트스트랩 프롬프트 예시)
-아래를 Claude Code/Codex 세션에 그대로 던져 부트스트랩할 수 있다.
+## 10. 시작하는 법 (부트스트랩 프롬프트 예시)
+아래를 Claude Code/Codex 세션에 그대로 던져 작업을 이어갈 수 있다.
 
-> "이 저장소를 PROJECT_GUIDELINE.md 규약대로 초기화해줘. (1) §2 구조로 폴더/파일 스캐폴딩, (2) `common/seeding.py`·`common/metrics.py` 작성, (3) `tasks/task-02-traffic-stgnn/`부터 시작: METR-LA mini 다운로드 스크립트, Historical Average 기준선, 소형 STGNN 학습/평가, `results/metrics.json`과 지표 표 생성. 큰 데이터·체크포인트는 커밋하지 말고, DoD 체크리스트를 이슈로 만들어줘. 먼저 계획을 보여주고 승인받은 뒤 실행해."
-
-(진입장벽이 가장 낮은 **과제 02(교통 STGNN)**로 시작하는 것을 권장한다.)
+> "이 저장소를 PROJECT_GUIDELINE.md 규약대로 이어서 작업해줘. `tasks/task-01-occworld-spatial/`(OccWorld)에서: nuScenes mini + Occ3D 취득 안내, copy-last/linear 기준선, 미래 mIoU·ego-L2 평가, `results/metrics.json`과 지표 표 생성. 큰 데이터·체크포인트는 커밋하지 말고, 실패·미확인은 '한계'로 정직하게. 먼저 계획을 보여주고 승인받은 뒤 실행해."
