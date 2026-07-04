@@ -1,0 +1,22 @@
+# requirements.txt — Task 02 (교통 STGNN) 경량 의존성 (핀 버전)
+# =====================================================================
+# ⚠️ 과제 01(OccWorld)의 무거운 mmdet3d/mmcv/spconv 스택과 **분리**한다.
+#    이 과제는 소형 STGNN 이라 게이밍 PC(RTX 3060 8GB)에서 실제 학습 가능하며,
+#    의존성이 가볍다(순수 pip 로 충분, conda 불필요).
+#
+# 설치 (권장: 과제 전용 venv):
+#   python -m venv .venv-traffic && source .venv-traffic/bin/activate   # (Windows: .venv-traffic\Scripts\activate)
+#   pip install -r requirements.txt
+#
+# GPU(CUDA) torch 휠은 플랫폼별 인덱스에서 설치한다(아래는 CPU/기본 휠 핀):
+#   # 예) CUDA 12.1: pip install torch==2.2.2 --index-url https://download.pytorch.org/whl/cu121
+# =====================================================================
+torch==2.2.2
+numpy==1.26.4
+pandas==2.2.2
+h5py==3.11.0
+tables==3.9.2          # pandas.read_hdf(.h5) 백엔드 (PyTables)
+pyyaml==6.0.1
+scipy==1.13.1          # 인접행렬(sparse)·거리 처리
+tqdm==4.66.4
+tensorboard==2.16.2    # (선택) 학습 곡선 로깅
