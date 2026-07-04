@@ -12,15 +12,70 @@
 ## 핵심 원칙 — 결과를 지어내지 않는다
 실제 실행값(`metrics.json`)만 보고한다. 미검증·미실행은 **한계**로 명시하며 달성한 것처럼 쓰지 않는다. 데이터셋·라벨·체크포인트는 **절대 커밋하지 않는다**(`.gitignore` 차단).
 
-## 진행 상태 (정직하게)
-| 과제 | 주제 | 상태 |
-|---|---|---|
-| **01 — OccWorld / DreamerV3** | 3D 점유 월드모델 | Phase 0·1 **완료**(기준선 실측) · Phase 2(OccWorld 추론) **보류(외부요인)** · Phase 3 **공개 완료** |
-| 02 — STGNN | 도시 교통 시공간 예측 | **계획됨**(미착수) |
-| 03 — Cross-Embodiment Nav | 교차 임바디먼트 내비 | **계획됨**(미착수) |
-| 04 — PointMamba / SLAM | Mamba 기반 LiDAR·점군 | **계획됨**(미착수) |
+## 개요 (Overview)
 
-## 과제 01 — 실측 결과 (실제값, 기준선만)
+### 프로젝트 구조
+```mermaid
+flowchart TB
+  root["ml-repro<br/>SLAM · 도시 · 공간지능<br/>(RTX 3060, 8GB)"]
+
+  root --> occ["3D 점유 월드모델<br/>(OccWorld ← DreamerV3)"]
+  occ --> occ1["기준선 완료<br/>mIoU · ego-L2"]:::done
+  occ --> occ2["추론 보류<br/>가중치 오프라인"]:::onhold
+  occ --> occ3["공개 완료"]:::done
+
+  root --> t1["교통 예측<br/>(GraphCast → DCRNN)"]:::planned
+  root --> t2["교차 임바디먼트 내비<br/>(Open X-Embodiment)"]:::planned
+  root --> t3["LiDAR 점군<br/>(Mamba → PointMamba)"]:::planned
+
+  root --> infra["공유 인프라<br/>seeding · metrics · HF 업로드 게이트 · license guard"]:::infra
+
+  subgraph Legend["범례"]
+    Ld["완료(done)"]:::done
+    Lh["보류(on hold)"]:::onhold
+    Lp["계획(planned)"]:::planned
+  end
+
+  classDef done fill:#c6f6d5,stroke:#2f855a,color:#1a202c;
+  classDef onhold fill:#fefcbf,stroke:#b7791f,color:#1a202c;
+  classDef planned fill:#e2e8f0,stroke:#718096,color:#1a202c;
+  classDef infra fill:#bee3f8,stroke:#2b6cb0,color:#1a202c;
+```
+
+### 3D 점유 월드모델 — 재현 파이프라인
+```mermaid
+flowchart LR
+  A["nuScenes mini + Occ3D gts<br/>(로컬, 미커밋)"] --> B["전처리<br/>free=17 · mask_camera"]
+  B --> C["기준선<br/>copy-last · linear"]
+  C --> D["평가<br/>mIoU · IoU · ego-L2"]
+  D --> E["metrics.json"]
+  E --> F["공개"]:::done
+  B -.-> G["OccWorld 추론<br/>보류 — 가중치 오프라인"]:::onhold
+
+  classDef done fill:#c6f6d5,stroke:#2f855a,color:#1a202c;
+  classDef onhold fill:#fefcbf,stroke:#b7791f,color:#1a202c;
+```
+
+### 예시 시나리오
+**(A) 목표 시나리오 — 이 작업이 지향하는 것(OccWorld의 비전):**
+> 차량이 교차로에 접근할 때, 과거 몇 프레임의 3D 점유를 입력하면 월드모델이 향후 3초의 주변 점유 변화(보행자·차량 이동·주행가능영역)와 자차 궤적을 함께 예측해, 계획 모듈이 충돌 위험을 사전에 평가한다.
+
+이는 OccWorld가 지향하는 **목표**이며, 우리가 구현했다는 뜻이 **아니다**.
+
+**(B) 현재 검증분 — 실제로 돌린 것:**
+> copy-last·linear 기준선으로 실 nuScenes-mini + Occ3D에서 미래 점유(mIoU/IoU)·자차 궤적(ego-L2)을 실측했다. OccWorld **모델 추론은 보류**(가중치 오프라인)라 모델↔기준선 대비는 미확보.
+
+(A) 목표 시나리오를 우리가 구현했다고 오해되지 않도록 (B)와 분명히 구분한다.
+
+## 진행 상태 (정직하게)
+| 작업 | 초점 | 상태 |
+|---|---|---|
+| **3D 점유 월드모델** (OccWorld ← DreamerV3) | 미래 점유 + 자차 궤적 예측 | 기준선 **완료**(mIoU · ego-L2) · 추론 **보류**(가중치 오프라인) · **공개 완료** |
+| 교통 예측 (GraphCast → DCRNN) | 도시 교통 시공간 | **계획됨**(미착수) |
+| 교차 임바디먼트 내비 (Open X-Embodiment) | 로봇 몸체 간 내비게이션 | **계획됨**(미착수) |
+| LiDAR 점군 (Mamba → PointMamba) | 점군 이해 | **계획됨**(미착수) |
+
+## 실측 결과 (실제값, 기준선만)
 실 nuScenes **v1.0-mini**, 프로토콜 과거 2s → 미래 3s @ 2Hz, CPU. **검증 split = 2씬 / 63윈도우** (⚠️ 표본이 작아 일반화 주의).
 
 **점유 — copy-last 기준선(= 논문 "Copy&Paste" 정의), 실 Occ3D gts** (camera-mask 적용, free 클래스 17 제외):
@@ -43,7 +98,7 @@
 ## Phase 2 — OccWorld 추론이 보류된 이유 (외부요인)
 OccWorld 사전학습 가중치·temporal pkl은 저자 **Tsinghua cloud(Seafile) 링크**로만 배포되는데, 이 링크가 **현재 비활성**이다(브라우저·CLI 모두 "share link not found"; 실제 토큰이 가짜 토큰과 동일하게 반응). 모델 수치를 지어낼 수 없으므로 **OccWorld↔기준선 대비 행은 공란으로 둔다.** [`ISSUE_phase2_blocked.md`](tasks/task-01-occworld-spatial/ISSUE_phase2_blocked.md) 참조. 링크 복구 또는 미러 확보 시 재개한다.
 
-## 재현 방법 (과제 01 기준선)
+## 재현 방법 (점유 기준선)
 ```bash
 # 1) 데이터 취득 안내(수동; nuScenes/Occ3D는 등록 필요 — 자동 다운로드 없음)
 bash tasks/task-01-occworld-spatial/scripts/download_data.sh --subset mini
@@ -55,7 +110,7 @@ python tasks/task-01-occworld-spatial/scripts/eval_occ_baseline.py
 상세: [`PROJECT_GUIDELINE.md`](PROJECT_GUIDELINE.md), 과제 카드 [`tasks/task-01-occworld-spatial/README.md`](tasks/task-01-occworld-spatial/README.md).
 
 ## References (인용 논문)
-> 이 목록은 현재 구현된 **과제 01 기준**이다. 과제 02~04는 계획 단계로, 착수 시 해당 논문을 추가한다. BibTeX: [`CITATIONS.md`](CITATIONS.md).
+> 이 목록은 현재 구현된 작업(**3D 점유 월드모델**) 기준이다. 계획된 작업(교통 예측, 교차 임바디먼트 내비, LiDAR 점군)은 착수 시 해당 논문을 추가한다. BibTeX: [`CITATIONS.md`](CITATIONS.md).
 
 - **[앵커]** Hafner, D., Pasukonis, J., Ba, J., & Lillicrap, T. (2025). *Mastering diverse control tasks through world models.* **Nature, 640, 647–653.** DOI [10.1038/s41586-025-08744-2](https://doi.org/10.1038/s41586-025-08744-2) [SCI(E)].
   — DreamerV3: 이 프로젝트가 축소 재현하는 월드모델 원리.
