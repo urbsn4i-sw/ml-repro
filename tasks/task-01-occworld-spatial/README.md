@@ -68,9 +68,9 @@ bash scripts/smoke.sh
 ```
 
 ## 실행 계획 (하이브리드 경로)
-- **Phase 0 (스캐폴딩):** 로컬 3060. ← *현재 단계*
-- **Phase 1 (mini 데이터·기준선·평가 골격):** 로컬 3060. mini info pkl은 "직접 생성" 기본, 실패 시 val pkl 필터, 그래도 안 되면 한계 명시.
-- **Phase 2 (OccWorld 사전학습 추론):** 로컬 WSL2 smoke 우선 → mmcv/mmdet3d/spconv 빌드 실패 또는 8GB OOM 시 **Colab(T4/L4 16GB) 이관**. 이관 지점·사유 기록.
+- **Phase 0 (스캐폴딩):** 로컬 3060. ✅ 완료.
+- **Phase 1 (mini 데이터·기준선·평가 골격):** 로컬 3060. ✅ 완료(mini info는 무설치 직접 생성 성공, 기준선·점유 지표 실측).
+- **Phase 2 (OccWorld 사전학습 추론):** ⚠️ *부분 완료 / 미확보* — 코드 조사·재개 준비는 끝났으나 저자 가중치·pkl 링크 비활성으로 추론 미확보(아래 「Phase 2」 절). 링크 복구 시 WSL2 smoke → 실패/8GB OOM 시 Colab(T4/L4 16GB) 이관.
 
 ## 결과 (실제 실행값만 기입) — Phase 1 기준선, 실 nuScenes v1.0-mini
 과거 2s(4f) → 미래 3s(6f) @2Hz, CPU. **val 2씬/63윈도우**(주 평가), train 8씬/251윈도우는 참고.
@@ -130,7 +130,19 @@ bash scripts/smoke.sh
 
 **미완 — Phase 2 / 후속으로 이월** (Phase 1 범위 밖, 정직하게 미달)
 - [ ] 충돌률 실측 — *유보*: 구현은 있으나(`metrics.collision_rate`) 예측 궤적↔점유 결합 프로토콜 확정 후
-- [ ] OccWorld 사전학습 추론 + 모델↔기준선 대비 — *Phase 2*
+- [ ] OccWorld 사전학습 추론 + 모델↔기준선 대비 — *미확보(외부요인)*: 저자 Tsinghua cloud 가중치·pkl 링크 비활성으로 취득 불가 → [ISSUE_phase2_blocked.md](ISSUE_phase2_blocked.md)
 - [ ] Colab/게이밍PC 구동 가능성 + 실제 하드웨어(GPU/VRAM) 기록 — *Phase 2*(환경 구축·추론에서 실측)
 
 > 요약: Phase 1 범위(스캐폴딩·mini 데이터·기준선·평가)는 **모두 충족하여 종료**. OccWorld 추론·충돌률·하드웨어 구동은 Phase 2/후속으로 이월(현재 정직하게 미달로 표기).
+
+## Phase 2 — ⚠️ 부분 완료 / OccWorld 추론 **미확보(외부요인 한계)** (2026-07-04)
+> **결론:** OccWorld 사전학습 추론은 **취득 불가로 미확보**. 저자 사전학습 가중치·temporal pkl이 올라간 **Tsinghua cloud Seafile 공유 링크가 현재 비활성**(브라우저·CLI 모두 "링크 없음"). 우리가 값을 지어낼 수 없으므로 **모델↔기준선 대비 지표는 공란 유지**. → 이슈 [ISSUE_phase2_blocked.md](ISSUE_phase2_blocked.md).
+
+**확보 완료 — Phase 2 준비 상태(링크 복구 시 즉시 재개 가능):**
+- **2-A 코드 조사 완료**: OccWorld 원 리포 구조 파악. eval(`eval_metric_stp3.py` + `config/occworld.py`)이 요구하는 데이터·모델·축소 지점 확정.
+- **temporal pkl 재생성 경로 확정 = 전략 B(필터)**: 원 리포에 pkl **생성 스크립트 없음**(배포 전용). 따라서 배포된 full `val` pkl을 우리 mini 씬(scene-0103·0916)으로 **필터링**하는 방법이 정공법. pkl 구조(`data['infos']`=scene→프레임 리스트, 각 프레임 token·ego pose·`gt_ego_fut_trajs`·`pose_mode`·`cams`)까지 파악.
+- **eval 데이터 요구사항 확정**: `data/nuscenes/gts/{scene}/{token}/labels.npz`(✅ 보유) + val temporal pkl(미확보) + 사전학습 ckpt(미확보).
+- **8GB OOM 예상 지점 확정**: VQVAE 인코더가 12프레임×200²×128ch 처리 시 활성화 ≈2.5GB→배수로 8GB 초과 가능. 완화책(eval 프레임 수 축소·no_grad·청크). 실패 시 Colab(T4/L4 16GB) 이관 — 사전 합의.
+- **의존성 리스크 확정**: eval도 `mmdet3d`/`mmcv`/`mmengine` 필수(dataset.py 모듈 로드 시 import). sm_86/py3.8 빌드가 관문.
+
+**재개 조건:** Tsinghua 링크 복구 **또는** 대체 미러로 가중치·pkl 확보 시 → 2-B2(pkl 필터) → 2-D(환경 설치) → 2-E(smoke) 순으로 진행.
