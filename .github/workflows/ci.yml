@@ -32,6 +32,10 @@ jobs:
         run: |
           python -c "import common.metrics, common.seeding, common.hub; print('imports OK')"
 
-      - name: Smoke — synthetic dummy baseline -> metrics pipeline (numpy-only)
+      - name: Smoke (task-01) — synthetic dummy baseline -> metrics pipeline (numpy-only)
         run: |
           bash tasks/task-01-occworld-spatial/scripts/smoke.sh
+
+      - name: Smoke (task-02) — synthetic traffic baseline -> metrics pipeline (numpy-only)
+        run: |
+          bash tasks/task-02-traffic-stgnn/scripts/smoke.sh
