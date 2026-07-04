@@ -30,6 +30,44 @@ def copy_last(history: Any, horizon: int) -> Any:
     return np.repeat(last[None, ...], horizon, axis=0)
 
 
+def seasonal_average_table(series: Any, train_len: int, period: int, null_val: float = 0.0):
+    """주기(period) 슬롯별 계절 평균표 (period, N) — **train 구간만** 사용(누수 방지).
+
+    DCRNN 논문의 Historical Average 정의: 각 시각을 '주(week) 주기 내 같은 슬롯'의
+    과거 평균으로 예측(period=7일=2016스텝@5분). null_val 위치는 평균에서 제외.
+    어떤 슬롯/노드에 유효 관측이 없으면 NaN(값을 지어내지 않음).
+    """
+    np = _np()
+    s = np.asarray(series, dtype=np.float64)[:train_len]
+    if s.ndim != 2:
+        raise ValueError(f"series 는 (T, N) 이어야 함: {s.shape}")
+    T, N = s.shape
+    mask = (~np.isnan(s)) if (isinstance(null_val, float) and np.isnan(null_val)) else (s != null_val)
+    table_sum = np.zeros((period, N))
+    table_cnt = np.zeros((period, N))
+    slots = np.arange(T) % period
+    np.add.at(table_sum, slots, np.where(mask, s, 0.0))
+    np.add.at(table_cnt, slots, mask.astype(np.float64))
+    with np.errstate(invalid="ignore", divide="ignore"):
+        table = np.where(table_cnt > 0, table_sum / table_cnt, np.nan)
+    return table
+
+
+def seasonal_ha_predict(table: Any, target_start_indices: Any, horizon: int, period: int) -> Any:
+    """계절 평균표로 다중 윈도우 예측. 반환 (num_windows, horizon, N).
+
+    target_start_indices[w]: 윈도우 w 의 첫 예측 타임스텝 절대 인덱스.
+    horizon h(0-based) 의 절대 인덱스 = target_start + h → 슬롯 (…)%period 조회.
+    HA 는 타깃 시각의 계절 슬롯만 보므로 지평에 따라 예측이 '누적 변화'하지 않는다(대조).
+    """
+    np = _np()
+    tbl = np.asarray(table, dtype=np.float64)
+    starts = np.asarray(target_start_indices, dtype=np.int64)[:, None]  # (W,1)
+    h = np.arange(horizon)[None, :]                                     # (1,H)
+    slots = (starts + h) % period                                       # (W,H)
+    return tbl[slots]                                                    # (W,H,N)
+
+
 def historical_average(history: Any, horizon: int, null_val: float = 0.0) -> Any:
     """관측 history 의 (결측 제외) 평균을 미래 전 지평에 사용. 반환 (horizon, *).
 

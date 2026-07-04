@@ -44,6 +44,21 @@ class Scaler:
         return np.asarray(arr, dtype=np.float64) * self.std + self.mean
 
 
+def chronological_split_sizes(num_windows: int, ratios=(0.7, 0.1, 0.2)):
+    """윈도우 개수를 시간순 train/val/test 로 분할한 크기 (n_train, n_val, n_test).
+
+    DCRNN 관례: n_test=round(W*test), n_train=round(W*train), n_val=나머지(누수 없이 합=W).
+    분할은 **셔플 없이 시간순**(앞=train, 중간=val, 뒤=test).
+    """
+    tr, va, te = ratios
+    n_test = int(round(num_windows * te))
+    n_train = int(round(num_windows * tr))
+    n_val = num_windows - n_train - n_test
+    if n_val < 0:
+        raise ValueError(f"분할 비율이 잘못됨: {ratios} → n_val={n_val}")
+    return n_train, n_val, n_test
+
+
 def make_windows(series: Any, t_in: int, horizon: int):
     """(T, N) 시계열 → 슬라이딩 윈도우 (X, Y).
 
