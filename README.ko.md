@@ -24,7 +24,7 @@ flowchart TB
   occ --> occ2["추론 보류<br/>가중치 오프라인"]:::onhold
   occ --> occ3["공개 완료"]:::done
 
-  root --> t1["교통 예측<br/>(GraphCast → DCRNN)"]:::planned
+  root --> t1["교통 예측<br/>(GraphCast → DCRNN)<br/>Phase 0·1: 데이터+기준선 완료"]:::active
   root --> t2["교차 임바디먼트 내비<br/>(Open X-Embodiment)"]:::planned
   root --> t3["LiDAR 점군<br/>(Mamba → PointMamba)"]:::planned
 
@@ -32,11 +32,13 @@ flowchart TB
 
   subgraph Legend["범례"]
     Ld["완료(done)"]:::done
+    La["진행 중(active)"]:::active
     Lh["보류(on hold)"]:::onhold
     Lp["계획(planned)"]:::planned
   end
 
   classDef done fill:#c6f6d5,stroke:#2f855a,color:#1a202c;
+  classDef active fill:#b2f5ea,stroke:#2c7a7b,color:#1a202c;
   classDef onhold fill:#fefcbf,stroke:#b7791f,color:#1a202c;
   classDef planned fill:#e2e8f0,stroke:#718096,color:#1a202c;
   classDef infra fill:#bee3f8,stroke:#2b6cb0,color:#1a202c;
@@ -71,7 +73,7 @@ flowchart LR
 | 작업 | 초점 | 상태 |
 |---|---|---|
 | **3D 점유 월드모델** (OccWorld ← DreamerV3) | 미래 점유 + 자차 궤적 예측 | 기준선 **완료**(mIoU · ego-L2) · 추론 **보류**(가중치 오프라인) · **공개 완료** |
-| 교통 예측 (GraphCast → DCRNN) | 도시 교통 시공간 | **계획됨**(미착수) |
+| 교통 예측 (GraphCast → DCRNN) | 도시 교통 시공간 | **Phase 0·1 완료**: METR-LA 데이터 + 기준선(copy-last · seasonal-HA) 실측 · STGNN 학습 **Phase 2**(예정) |
 | 교차 임바디먼트 내비 (Open X-Embodiment) | 로봇 몸체 간 내비게이션 | **계획됨**(미착수) |
 | LiDAR 점군 (Mamba → PointMamba) | 점군 이해 | **계획됨**(미착수) |
 
@@ -95,6 +97,13 @@ flowchart LR
 
 > 위 수치는 **우리 실측값**이며 논문 수치가 아니다. 움직이는 차량에 대해 등속 외삽이 persistence를 크게 앞서는 것은 예상되는 결과다.
 
+### 교통 예측 — 기준선 (실 METR-LA)
+실 METR-LA(207센서, 5분 간격), 시간순 70/10/20, **test split = 6,850 윈도우**, masked MAE/RMSE/MAPE(결측=0 제외). 기준선만 — **STGNN 학습은 Phase 2**:
+- **seasonal-HA** MAE ≈ **4.19** (전 지평 평탄; 논문 HA ≈ 4.16과 근접 — *참조용*, 구현 세부 차이로 직접 비교 아님).
+- **copy-last** MAE는 지평 증가 시 커짐(**4.02 → 5.09 → 6.80** @15/30/60분): 다단계 **오차 누적**(RQ2)이 기준선에서 이미 관찰됨.
+
+상세: 과제 카드 [`tasks/task-02-traffic-stgnn/README.md`](tasks/task-02-traffic-stgnn/README.md) · [`metrics.json`](tasks/task-02-traffic-stgnn/results/baselines-metr-la-20260704T035357Z/metrics.json).
+
 ## Phase 2 — OccWorld 추론이 보류된 이유 (외부요인)
 OccWorld 사전학습 가중치·temporal pkl은 저자 **Tsinghua cloud(Seafile) 링크**로만 배포되는데, 이 링크가 **현재 비활성**이다(브라우저·CLI 모두 "share link not found"; 실제 토큰이 가짜 토큰과 동일하게 반응). 모델 수치를 지어낼 수 없으므로 **OccWorld↔기준선 대비 행은 공란으로 둔다.** [`ISSUE_phase2_blocked.md`](tasks/task-01-occworld-spatial/ISSUE_phase2_blocked.md) 참조. 링크 복구 또는 미러 확보 시 재개한다.
 
@@ -110,7 +119,7 @@ python tasks/task-01-occworld-spatial/scripts/eval_occ_baseline.py
 상세: [`PROJECT_GUIDELINE.md`](PROJECT_GUIDELINE.md), 과제 카드 [`tasks/task-01-occworld-spatial/README.md`](tasks/task-01-occworld-spatial/README.md).
 
 ## References (인용 논문)
-> 이 목록은 현재 구현된 작업(**3D 점유 월드모델**) 기준이다. 계획된 작업(교통 예측, 교차 임바디먼트 내비, LiDAR 점군)은 착수 시 해당 논문을 추가한다. BibTeX: [`CITATIONS.md`](CITATIONS.md).
+> 이 목록은 구현된 작업 기준이다: **3D 점유 월드모델** **및 교통 예측**(데이터+기준선 완료). 교통 논문(GraphCast / DCRNN / Graph WaveNet)은 이제 실제 사용 중이며 [`CITATIONS.md`](CITATIONS.md)에 등재돼 있다. 아직 미착수인 작업(교차 임바디먼트 내비, LiDAR 점군)은 착수 시 해당 논문을 추가한다. BibTeX: [`CITATIONS.md`](CITATIONS.md).
 
 - **[앵커]** Hafner, D., Pasukonis, J., Ba, J., & Lillicrap, T. (2025). *Mastering diverse control tasks through world models.* **Nature, 640, 647–653.** DOI [10.1038/s41586-025-08744-2](https://doi.org/10.1038/s41586-025-08744-2) [SCI(E)].
   — DreamerV3: 이 프로젝트가 축소 재현하는 월드모델 원리.
@@ -120,6 +129,10 @@ python tasks/task-01-occworld-spatial/scripts/eval_occ_baseline.py
   — 기반 주행 데이터셋(우리는 ego 궤적에 v1.0-mini 서브셋 사용).
 - **[점유 라벨]** Tian, X., Jiang, T., Yun, L., Wang, Y., Wang, Y., & Zhao, H. (2023). *Occ3D: A Large-Scale 3D Occupancy Prediction Benchmark for Autonomous Driving.* arXiv [2304.14365](https://arxiv.org/abs/2304.14365).
   — mIoU/IoU에 쓰는 3D 시맨틱 점유 정답(`gts`)의 출처.
+- **[교통 · 앵커]** Lam, R., et al. (2023). *Learning skillful medium-range global weather forecasting.* **Science, 382, 1416–1421.** DOI [10.1126/science.adi2336](https://doi.org/10.1126/science.adi2336) [SCI(E)].
+  — GraphCast: 교통 STGNN이 도시 규모로 대응하는 격자→그래프→롤아웃 패러다임.
+- **[교통 · 브리지]** Li, Y., Yu, R., Shahabi, C., & Liu, Y. (2018). *DCRNN: Data-Driven Traffic Forecasting.* **ICLR 2018.** arXiv [1707.01926](https://arxiv.org/abs/1707.01926). · Wu, Z., et al. (2019). *Graph WaveNet for Deep Spatial-Temporal Graph Modeling.* **IJCAI 2019.** DOI [10.24963/ijcai.2019/264](https://doi.org/10.24963/ijcai.2019/264).
+  — 확산/adaptive 인접행렬 STGNN과 METR-LA/PEMS-BAY 벤치마크·기준선 정의.
 
 ## 데이터 출처·라이선스
 - **코드(이 저장소):** **MIT License** — [`LICENSE`](LICENSE) 참조. 우리가 작성한 스크립트·지표·config에 적용.
