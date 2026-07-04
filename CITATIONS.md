@@ -1,7 +1,8 @@
 # Citations — BibTeX
 
-Papers cited by **Task 01** (currently implemented). Tasks 02–04 are at the planning
-stage; their references will be added when work starts. See role labels in
+Papers cited by the **currently implemented work** (the 3D occupancy world model).
+Planned tasks (traffic forecasting, cross-embodiment navigation, LiDAR point cloud)
+will add their references when work starts. See role labels in
 [`README.md`](README.md#references) / [`README.ko.md`](README.ko.md).
 
 ## Anchor — DreamerV3

@@ -12,15 +12,70 @@ Take recent ML/DL/RL breakthroughs (e.g. **DreamerV3**, **OccWorld**) and reprod
 ## Core principle — do not fabricate results
 Only values from actual runs (`metrics.json`) are reported. Anything unverified or not run is stated explicitly as a **limitation**, never presented as if achieved. Datasets, labels, and checkpoints are **never committed** (blocked by `.gitignore`).
 
-## Status (honest)
-| Task | Topic | Status |
-|---|---|---|
-| **01 — OccWorld / DreamerV3** | 3D occupancy world model | Phase 0·1 **done** (baselines measured) · Phase 2 (OccWorld inference) **blocked (external)** · Phase 3 **published** |
-| 02 — STGNN | Urban traffic spatio-temporal forecasting | **Planned** (not started) |
-| 03 — Cross-Embodiment Nav | Cross-embodiment navigation | **Planned** (not started) |
-| 04 — PointMamba / SLAM | Mamba-based LiDAR / point cloud | **Planned** (not started) |
+## Overview
 
-## Task 01 — measured results (real, baselines only)
+### Project structure
+```mermaid
+flowchart TB
+  root["ml-repro<br/>SLAM · urban · spatial intelligence<br/>(RTX 3060, 8 GB)"]
+
+  root --> occ["3D occupancy world model<br/>(OccWorld ← DreamerV3)"]
+  occ --> occ1["baselines done<br/>mIoU · ego-L2"]:::done
+  occ --> occ2["inference on hold<br/>weights offline"]:::onhold
+  occ --> occ3["published"]:::done
+
+  root --> t1["Traffic forecasting<br/>(GraphCast → DCRNN)"]:::planned
+  root --> t2["Cross-embodiment navigation<br/>(Open X-Embodiment)"]:::planned
+  root --> t3["LiDAR point cloud<br/>(Mamba → PointMamba)"]:::planned
+
+  root --> infra["Shared infrastructure<br/>seeding · metrics · HF upload gate · license guard"]:::infra
+
+  subgraph Legend
+    Ld["done"]:::done
+    Lh["on hold"]:::onhold
+    Lp["planned"]:::planned
+  end
+
+  classDef done fill:#c6f6d5,stroke:#2f855a,color:#1a202c;
+  classDef onhold fill:#fefcbf,stroke:#b7791f,color:#1a202c;
+  classDef planned fill:#e2e8f0,stroke:#718096,color:#1a202c;
+  classDef infra fill:#bee3f8,stroke:#2b6cb0,color:#1a202c;
+```
+
+### 3D occupancy world model — reproduction pipeline
+```mermaid
+flowchart LR
+  A["nuScenes mini + Occ3D gts<br/>(local, not committed)"] --> B["Preprocess<br/>free=17 · mask_camera"]
+  B --> C["Baselines<br/>copy-last · linear"]
+  C --> D["Evaluate<br/>mIoU · IoU · ego-L2"]
+  D --> E["metrics.json"]
+  E --> F["published"]:::done
+  B -.-> G["OccWorld inference<br/>on hold — weights offline"]:::onhold
+
+  classDef done fill:#c6f6d5,stroke:#2f855a,color:#1a202c;
+  classDef onhold fill:#fefcbf,stroke:#b7791f,color:#1a202c;
+```
+
+### Example scenario
+**(A) Target scenario — what this line of work aims at (OccWorld's vision):**
+> When a vehicle approaches an intersection, given the past few frames of 3D occupancy, a world model forecasts the next ~3 s of surrounding occupancy change (pedestrians, vehicles, drivable area) together with the ego trajectory, so a planner can assess collision risk in advance.
+
+This describes the **goal** OccWorld targets — it does **not** mean we implemented it.
+
+**(B) What we actually validated — what really ran:**
+> copy-last and linear baselines measured future occupancy (mIoU / IoU) and ego trajectory (ego-L2) on real nuScenes-mini + Occ3D. OccWorld **model inference is on hold** (weights offline), so the model-vs-baseline comparison is not available.
+
+Kept explicitly separate from (A), so the target vision is not mistaken for our implementation.
+
+## Status (honest)
+| Work | Focus | Status |
+|---|---|---|
+| **3D occupancy world model** (OccWorld ← DreamerV3) | future occupancy + ego forecasting | baselines **done** (mIoU · ego-L2) · inference **on hold** (weights offline) · **published** |
+| Traffic forecasting (GraphCast → DCRNN) | urban traffic spatio-temporal | **Planned** (not started) |
+| Cross-embodiment navigation (Open X-Embodiment) | navigation across robot bodies | **Planned** (not started) |
+| LiDAR point cloud (Mamba → PointMamba) | point-cloud understanding | **Planned** (not started) |
+
+## Measured results (real, baselines only)
 Real nuScenes **v1.0-mini**, protocol past 2s → future 3s @ 2 Hz, CPU. **Validation split = 2 scenes / 63 windows** (⚠️ small sample — do not over-generalize).
 
 **Occupancy — copy-last baseline (= paper "Copy&Paste" definition), real Occ3D gts** (camera-mask applied, free class 17 excluded):
@@ -43,7 +98,7 @@ Real nuScenes **v1.0-mini**, protocol past 2s → future 3s @ 2 Hz, CPU. **Valid
 ## Phase 2 — why OccWorld inference is blocked (external factor)
 OccWorld's pretrained weights and temporal pkl are distributed only via the authors' **Tsinghua cloud (Seafile) links**, which are **currently inactive** ("share link not found" for both browser and CLI; a real token behaves identically to a bogus one). We cannot fabricate the model's numbers, so the **OccWorld-vs-baseline row is left blank**. See [`ISSUE_phase2_blocked.md`](tasks/task-01-occworld-spatial/ISSUE_phase2_blocked.md). Work resumes if the links are restored or a mirror is found.
 
-## Reproduce (Task 01 baselines)
+## Reproduce (occupancy baselines)
 ```bash
 # 1) data acquisition guide (manual; nuScenes/Occ3D need registration — no auto-download)
 bash tasks/task-01-occworld-spatial/scripts/download_data.sh --subset mini
@@ -55,7 +110,7 @@ python tasks/task-01-occworld-spatial/scripts/eval_occ_baseline.py
 Details: [`PROJECT_GUIDELINE.md`](PROJECT_GUIDELINE.md), task card [`tasks/task-01-occworld-spatial/README.md`](tasks/task-01-occworld-spatial/README.md).
 
 ## References
-> This list covers **Task 01 only** (currently implemented). Tasks 02–04 are at the planning stage; their papers will be added when work starts. BibTeX: [`CITATIONS.md`](CITATIONS.md).
+> These references are for the **currently implemented work** (the 3D occupancy world model). The planned tasks (traffic forecasting, cross-embodiment navigation, LiDAR point cloud) will add their papers when work starts. BibTeX: [`CITATIONS.md`](CITATIONS.md).
 
 - **[Anchor]** Hafner, D., Pasukonis, J., Ba, J., & Lillicrap, T. (2025). *Mastering diverse control tasks through world models.* **Nature, 640, 647–653.** DOI [10.1038/s41586-025-08744-2](https://doi.org/10.1038/s41586-025-08744-2) [SCI(E)].
   — DreamerV3: the world-model principle this project reproduces at small scale.
