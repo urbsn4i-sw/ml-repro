@@ -35,6 +35,16 @@ DENY_PATH_SEGMENTS: frozenset[str] = frozenset(
     {"data", "gts", "nuscenes", "occ3d", "samples", "sweeps", "__pycache__", "secrets"}
 )
 
+# 이미지로 취급할 확장자(화이트리스트를 통과하지만 '씬 덤프' 위험이 있는 것들).
+IMAGE_EXTENSIONS: frozenset[str] = frozenset({".png", ".gif", ".jpg", ".jpeg"})
+
+# 이미지 덤프 방어 기본 임계값 (assert_clean 인자로 조정 가능; 하드코딩 최소화).
+#   - 화이트리스트는 .png/.gif 를 확장자로 허용하지만, "방법 설명용 소량 figure"와
+#     "원본 씬을 복원한 대량 이미지 덤프"를 구분하지 못한다. 아래 값싼 가드로 메운다.
+DEFAULT_MAX_IMAGE_COUNT = 20        # 이미지 개수 상한
+DEFAULT_MAX_IMAGE_TOTAL_MB = 10.0   # 이미지 총 용량 상한(MB)
+DEFAULT_MAX_SINGLE_IMAGE_MB = 2.0   # 개별 이미지 상한(MB) — 초과 시 '씬 덤프 의심'
+
 
 def is_allowed(rel_path: Path) -> bool:
     """상대경로가 화이트리스트 규칙을 통과하면 True."""
@@ -62,10 +72,53 @@ def scan(src: Path) -> tuple[list[Path], list[Path]]:
     return allowed, rejected
 
 
-def assert_clean(src: Path) -> list[Path]:
-    """업로드 직전 게이트. 거부 파일이 하나라도 있으면 중단.
+def _is_image(rel: Path) -> bool:
+    return rel.suffix.lower() in IMAGE_EXTENSIONS
 
-    Returns 허용 파일 목록. 거부 파일이 있으면 RuntimeError.
+
+def check_image_dump(
+    src: Path,
+    allowed: list[Path],
+    max_count: int = DEFAULT_MAX_IMAGE_COUNT,
+    max_total_mb: float = DEFAULT_MAX_IMAGE_TOTAL_MB,
+    max_single_mb: float = DEFAULT_MAX_SINGLE_IMAGE_MB,
+) -> list[str]:
+    """화이트리스트를 통과한 이미지들이 '대량 씬 덤프'로 의심되는지 검사.
+
+    반환: 위반 메시지 목록(비어 있으면 통과). 실제 파일 크기(src/rel)를 stat 한다.
+    """
+    images = [r for r in allowed if _is_image(r)]
+    violations: list[str] = []
+    if not images:
+        return violations
+
+    sizes = {r: (src / r).stat().st_size for r in images}
+    total_mb = sum(sizes.values()) / 1e6
+
+    if len(images) > max_count:
+        violations.append(
+            f"이미지 개수 {len(images)}개 > 상한 {max_count}개 (대량 이미지 덤프 의심)"
+        )
+    if total_mb > max_total_mb:
+        violations.append(
+            f"이미지 총 용량 {total_mb:.1f}MB > 상한 {max_total_mb}MB (대량 덤프 의심)"
+        )
+    big = [(r, sz / 1e6) for r, sz in sizes.items() if sz / 1e6 > max_single_mb]
+    for r, mb in sorted(big, key=lambda x: -x[1]):
+        violations.append(f"개별 이미지 {mb:.1f}MB > 상한 {max_single_mb}MB: {r} (씬 덤프 의심)")
+    return violations
+
+
+def assert_clean(
+    src: Path,
+    max_image_count: int = DEFAULT_MAX_IMAGE_COUNT,
+    max_image_total_mb: float = DEFAULT_MAX_IMAGE_TOTAL_MB,
+    max_single_image_mb: float = DEFAULT_MAX_SINGLE_IMAGE_MB,
+) -> list[Path]:
+    """업로드 직전 게이트. (1) 화이트리스트 밖 파일 또는 (2) 이미지 덤프 의심이면 중단.
+
+    Returns 허용 파일 목록. 위반이 있으면 RuntimeError(사람 확인 요청).
+    임계값은 인자로 조정 가능(하드코딩 최소화).
     """
     allowed, rejected = scan(src)
     if rejected:
@@ -75,6 +128,18 @@ def assert_clean(src: Path) -> list[Path]:
             f"허용 확장자: {sorted(ALLOWED_EXTENSIONS)}\n"
             f"거부된 파일 {len(rejected)}개:\n{lines}\n"
             "→ 위 파일들을 제거하거나, 정말 업로드가 필요하면 사람에게 확인을 받으세요."
+        )
+
+    img_violations = check_image_dump(
+        src, allowed, max_image_count, max_image_total_mb, max_single_image_mb
+    )
+    if img_violations:
+        lines = "\n".join(f"  - {v}" for v in img_violations)
+        raise RuntimeError(
+            "업로드 중단: 이미지 덤프 방어 게이트에 걸렸습니다.\n"
+            f"{lines}\n"
+            "→ '방법 설명용 소량 figure'만 올리세요. 정말 필요하면 사람 확인 후 "
+            "임계값(max_image_count/total_mb/single_mb)을 명시적으로 올려 재실행하세요."
         )
     return allowed
 
