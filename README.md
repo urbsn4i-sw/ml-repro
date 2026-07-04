@@ -24,7 +24,7 @@ flowchart TB
   occ --> occ2["inference on hold<br/>weights offline"]:::onhold
   occ --> occ3["published"]:::done
 
-  root --> t1["Traffic forecasting<br/>(GraphCast → DCRNN)"]:::planned
+  root --> t1["Traffic forecasting<br/>(GraphCast → DCRNN)<br/>Phase 0·1: data + baselines done"]:::active
   root --> t2["Cross-embodiment navigation<br/>(Open X-Embodiment)"]:::planned
   root --> t3["LiDAR point cloud<br/>(Mamba → PointMamba)"]:::planned
 
@@ -32,11 +32,13 @@ flowchart TB
 
   subgraph Legend
     Ld["done"]:::done
+    La["active (in progress)"]:::active
     Lh["on hold"]:::onhold
     Lp["planned"]:::planned
   end
 
   classDef done fill:#c6f6d5,stroke:#2f855a,color:#1a202c;
+  classDef active fill:#b2f5ea,stroke:#2c7a7b,color:#1a202c;
   classDef onhold fill:#fefcbf,stroke:#b7791f,color:#1a202c;
   classDef planned fill:#e2e8f0,stroke:#718096,color:#1a202c;
   classDef infra fill:#bee3f8,stroke:#2b6cb0,color:#1a202c;
@@ -71,7 +73,7 @@ Kept explicitly separate from (A), so the target vision is not mistaken for our 
 | Work | Focus | Status |
 |---|---|---|
 | **3D occupancy world model** (OccWorld ← DreamerV3) | future occupancy + ego forecasting | baselines **done** (mIoU · ego-L2) · inference **on hold** (weights offline) · **published** |
-| Traffic forecasting (GraphCast → DCRNN) | urban traffic spatio-temporal | **Planned** (not started) |
+| Traffic forecasting (GraphCast → DCRNN) | urban traffic spatio-temporal | **Phase 0·1 done**: METR-LA data + baselines (copy-last · seasonal-HA) measured · STGNN training **Phase 2** (planned) |
 | Cross-embodiment navigation (Open X-Embodiment) | navigation across robot bodies | **Planned** (not started) |
 | LiDAR point cloud (Mamba → PointMamba) | point-cloud understanding | **Planned** (not started) |
 
@@ -95,6 +97,13 @@ Real nuScenes **v1.0-mini**, protocol past 2s → future 3s @ 2 Hz, CPU. **Valid
 
 > These are **our** measurements, not paper numbers. Constant-velocity extrapolation clearly beats persistence for a moving ego vehicle, as expected.
 
+### Traffic forecasting — baselines (real METR-LA)
+Real METR-LA (207 sensors, 5-min), chronological 70/10/20, **test split = 6,850 windows**, masked MAE/RMSE/MAPE (null=0 excluded). Baselines only — **STGNN training is Phase 2**:
+- **seasonal-HA** MAE ≈ **4.19** (flat across horizons; close to the paper's HA ≈ 4.16 — *reference only*, implementation details differ so not a direct comparison).
+- **copy-last** MAE grows with horizon (**4.02 → 5.09 → 6.80** @15/30/60 min): multi-step **error accumulation** (RQ2) observed already in the baseline.
+
+Details: task card [`tasks/task-02-traffic-stgnn/README.md`](tasks/task-02-traffic-stgnn/README.md) · [`metrics.json`](tasks/task-02-traffic-stgnn/results/baselines-metr-la-20260704T035357Z/metrics.json).
+
 ## Phase 2 — why OccWorld inference is blocked (external factor)
 OccWorld's pretrained weights and temporal pkl are distributed only via the authors' **Tsinghua cloud (Seafile) links**, which are **currently inactive** ("share link not found" for both browser and CLI; a real token behaves identically to a bogus one). We cannot fabricate the model's numbers, so the **OccWorld-vs-baseline row is left blank**. See [`ISSUE_phase2_blocked.md`](tasks/task-01-occworld-spatial/ISSUE_phase2_blocked.md). Work resumes if the links are restored or a mirror is found.
 
@@ -110,7 +119,7 @@ python tasks/task-01-occworld-spatial/scripts/eval_occ_baseline.py
 Details: [`PROJECT_GUIDELINE.md`](PROJECT_GUIDELINE.md), task card [`tasks/task-01-occworld-spatial/README.md`](tasks/task-01-occworld-spatial/README.md).
 
 ## References
-> These references are for the **currently implemented work** (the 3D occupancy world model). The planned tasks (traffic forecasting, cross-embodiment navigation, LiDAR point cloud) will add their papers when work starts. BibTeX: [`CITATIONS.md`](CITATIONS.md).
+> These references cover the **implemented work**: the 3D occupancy world model **and** traffic forecasting (data + baselines done). Traffic papers (GraphCast / DCRNN / Graph WaveNet) are now in use and listed in [`CITATIONS.md`](CITATIONS.md). The still-unstarted tasks (cross-embodiment navigation, LiDAR point cloud) will add their papers when work starts. BibTeX: [`CITATIONS.md`](CITATIONS.md).
 
 - **[Anchor]** Hafner, D., Pasukonis, J., Ba, J., & Lillicrap, T. (2025). *Mastering diverse control tasks through world models.* **Nature, 640, 647–653.** DOI [10.1038/s41586-025-08744-2](https://doi.org/10.1038/s41586-025-08744-2) [SCI(E)].
   — DreamerV3: the world-model principle this project reproduces at small scale.
@@ -120,6 +129,10 @@ Details: [`PROJECT_GUIDELINE.md`](PROJECT_GUIDELINE.md), task card [`tasks/task-
   — Base driving dataset (we use the v1.0-mini subset for ego trajectories).
 - **[Occupancy labels]** Tian, X., Jiang, T., Yun, L., Wang, Y., Wang, Y., & Zhao, H. (2023). *Occ3D: A Large-Scale 3D Occupancy Prediction Benchmark for Autonomous Driving.* arXiv [2304.14365](https://arxiv.org/abs/2304.14365).
   — Source of the 3D semantic occupancy ground truth (`gts`) used for mIoU/IoU.
+- **[Traffic · Anchor]** Lam, R., et al. (2023). *Learning skillful medium-range global weather forecasting.* **Science, 382, 1416–1421.** DOI [10.1126/science.adi2336](https://doi.org/10.1126/science.adi2336) [SCI(E)].
+  — GraphCast: the grid→graph→rollout paradigm the traffic STGNN mirrors at city scale.
+- **[Traffic · Bridge]** Li, Y., Yu, R., Shahabi, C., & Liu, Y. (2018). *DCRNN: Data-Driven Traffic Forecasting.* **ICLR 2018.** arXiv [1707.01926](https://arxiv.org/abs/1707.01926). · Wu, Z., et al. (2019). *Graph WaveNet for Deep Spatial-Temporal Graph Modeling.* **IJCAI 2019.** DOI [10.24963/ijcai.2019/264](https://doi.org/10.24963/ijcai.2019/264).
+  — Diffusion / adaptive-adjacency STGNNs and the METR-LA/PEMS-BAY benchmark + baseline definitions.
 
 ## Data sources & license
 - **Code (this repo):** **MIT License** — see [`LICENSE`](LICENSE). Applies to our own scripts, metrics, and configs.
