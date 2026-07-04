@@ -24,7 +24,7 @@ flowchart TB
   occ --> occ2["추론 보류<br/>가중치 오프라인"]:::onhold
   occ --> occ3["공개 완료"]:::done
 
-  root --> t1["교통 예측<br/>(GraphCast → DCRNN)<br/>Phase 0·1: 데이터+기준선 완료"]:::active
+  root --> t1["교통 예측<br/>(GraphCast → DCRNN)<br/>Phase 0·1·2: STGNN + RQ1 절제"]:::active
   root --> t2["교차 임바디먼트 내비<br/>(Open X-Embodiment)"]:::planned
   root --> t3["LiDAR 점군<br/>(Mamba → PointMamba)"]:::planned
 
@@ -73,11 +73,11 @@ flowchart LR
 | 작업 | 초점 | 상태 |
 |---|---|---|
 | **3D 점유 월드모델** (OccWorld ← DreamerV3) | 미래 점유 + 자차 궤적 예측 | 기준선 **완료**(mIoU · ego-L2) · 추론 **보류**(가중치 오프라인) · **공개 완료** |
-| 교통 예측 (GraphCast → DCRNN) | 도시 교통 시공간 | **Phase 0·1 완료**: METR-LA 데이터 + 기준선(copy-last · seasonal-HA) 실측 · STGNN 학습 **Phase 2**(예정) |
+| 교통 예측 (GraphCast → DCRNN) | 도시 교통 시공간 | **Phase 0·1·2 완료**: METR-LA 데이터 + 기준선 + 소형 STGNN 학습·인접행렬 절제(RQ1) 실측 · SOTA 아님(원리 재현) |
 | 교차 임바디먼트 내비 (Open X-Embodiment) | 로봇 몸체 간 내비게이션 | **계획됨**(미착수) |
 | LiDAR 점군 (Mamba → PointMamba) | 점군 이해 | **계획됨**(미착수) |
 
-## 실측 결과 (실제값, 기준선만)
+## 실측 결과 (실제 실행값)
 실 nuScenes **v1.0-mini**, 프로토콜 과거 2s → 미래 3s @ 2Hz, CPU. **검증 split = 2씬 / 63윈도우** (⚠️ 표본이 작아 일반화 주의).
 
 **점유 — copy-last 기준선(= 논문 "Copy&Paste" 정의), 실 Occ3D gts** (camera-mask 적용, free 클래스 17 제외):
@@ -97,12 +97,14 @@ flowchart LR
 
 > 위 수치는 **우리 실측값**이며 논문 수치가 아니다. 움직이는 차량에 대해 등속 외삽이 persistence를 크게 앞서는 것은 예상되는 결과다.
 
-### 교통 예측 — 기준선 (실 METR-LA)
-실 METR-LA(207센서, 5분 간격), 시간순 70/10/20, **test split = 6,850 윈도우**, masked MAE/RMSE/MAPE(결측=0 제외). 기준선만 — **STGNN 학습은 Phase 2**:
-- **seasonal-HA** MAE ≈ **4.19** (전 지평 평탄; 논문 HA ≈ 4.16과 근접 — *참조용*, 구현 세부 차이로 직접 비교 아님).
-- **copy-last** MAE는 지평 증가 시 커짐(**4.02 → 5.09 → 6.80** @15/30/60분): 다단계 **오차 누적**(RQ2)이 기준선에서 이미 관찰됨.
+### 교통 예측 — STGNN + 기준선 (실 METR-LA)
+실 METR-LA(207센서, 5분 간격), 시간순 70/10/20, **test split = 6,850 윈도우**, masked MAE(결측=0), 원 단위(mph). 소형 STGNN(2-layer·hidden 32, RTX 3060, ~5분/모드, VRAM ~1.4GB)을 인접행렬 4모드로 학습해 기준선과 비교:
+- **STGNN (learned 인접행렬)** MAE **3.00 / 3.50 / 4.28** @15/30/60분 — copy-last(4.02/5.09/6.80)를 전 지평, seasonal-HA(4.19 평탄)를 15/30분에서 이김. 60분은 HA 가 근소 우위(4.19 vs 4.28).
+- **RQ1 (고정 vs 학습 인접행렬):** learned(4.28@60m) > fixed 도로망(4.89) > identity/그래프없음(4.95) — **인접행렬 학습이 고정 도로망보다 낫다**.
+- **RQ2 (오차 누적):** STGNN-learned 스텝당 MAE 기울기 0.155 vs copy-last 0.332 — STGNN 이 약 절반만 누적(seasonal-HA 는 구조상 평탄).
+- **SOTA 아님**(원리 재현): 우리 소형 모델은 DCRNN 논문(2.77/3.15/3.60)에 못 미침. PEMS-BAY 미실측.
 
-상세: 과제 카드 [`tasks/task-02-traffic-stgnn/README.md`](tasks/task-02-traffic-stgnn/README.md) · [`metrics.json`](tasks/task-02-traffic-stgnn/results/baselines-metr-la-20260704T035357Z/metrics.json).
+상세: 과제 카드 [`tasks/task-02-traffic-stgnn/README.md`](tasks/task-02-traffic-stgnn/README.md) · [`metrics.json`](tasks/task-02-traffic-stgnn/results/stgnn-metr-la-20260704T053515Z/metrics.json).
 
 ## Phase 2 — OccWorld 추론이 보류된 이유 (외부요인)
 OccWorld 사전학습 가중치·temporal pkl은 저자 **Tsinghua cloud(Seafile) 링크**로만 배포되는데, 이 링크가 **현재 비활성**이다(브라우저·CLI 모두 "share link not found"; 실제 토큰이 가짜 토큰과 동일하게 반응). 모델 수치를 지어낼 수 없으므로 **OccWorld↔기준선 대비 행은 공란으로 둔다.** [`ISSUE_phase2_blocked.md`](tasks/task-01-occworld-spatial/ISSUE_phase2_blocked.md) 참조. 링크 복구 또는 미러 확보 시 재개한다.

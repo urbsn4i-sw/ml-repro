@@ -24,7 +24,7 @@ flowchart TB
   occ --> occ2["inference on hold<br/>weights offline"]:::onhold
   occ --> occ3["published"]:::done
 
-  root --> t1["Traffic forecasting<br/>(GraphCast → DCRNN)<br/>Phase 0·1: data + baselines done"]:::active
+  root --> t1["Traffic forecasting<br/>(GraphCast → DCRNN)<br/>Phase 0·1·2: STGNN + RQ1 ablation"]:::active
   root --> t2["Cross-embodiment navigation<br/>(Open X-Embodiment)"]:::planned
   root --> t3["LiDAR point cloud<br/>(Mamba → PointMamba)"]:::planned
 
@@ -73,11 +73,11 @@ Kept explicitly separate from (A), so the target vision is not mistaken for our 
 | Work | Focus | Status |
 |---|---|---|
 | **3D occupancy world model** (OccWorld ← DreamerV3) | future occupancy + ego forecasting | baselines **done** (mIoU · ego-L2) · inference **on hold** (weights offline) · **published** |
-| Traffic forecasting (GraphCast → DCRNN) | urban traffic spatio-temporal | **Phase 0·1 done**: METR-LA data + baselines (copy-last · seasonal-HA) measured · STGNN training **Phase 2** (planned) |
+| Traffic forecasting (GraphCast → DCRNN) | urban traffic spatio-temporal | **Phase 0·1·2 done**: METR-LA data + baselines + small STGNN trained with adjacency ablation (RQ1) measured · not SOTA (principle reproduction) |
 | Cross-embodiment navigation (Open X-Embodiment) | navigation across robot bodies | **Planned** (not started) |
 | LiDAR point cloud (Mamba → PointMamba) | point-cloud understanding | **Planned** (not started) |
 
-## Measured results (real, baselines only)
+## Measured results (real runs)
 Real nuScenes **v1.0-mini**, protocol past 2s → future 3s @ 2 Hz, CPU. **Validation split = 2 scenes / 63 windows** (⚠️ small sample — do not over-generalize).
 
 **Occupancy — copy-last baseline (= paper "Copy&Paste" definition), real Occ3D gts** (camera-mask applied, free class 17 excluded):
@@ -97,12 +97,14 @@ Real nuScenes **v1.0-mini**, protocol past 2s → future 3s @ 2 Hz, CPU. **Valid
 
 > These are **our** measurements, not paper numbers. Constant-velocity extrapolation clearly beats persistence for a moving ego vehicle, as expected.
 
-### Traffic forecasting — baselines (real METR-LA)
-Real METR-LA (207 sensors, 5-min), chronological 70/10/20, **test split = 6,850 windows**, masked MAE/RMSE/MAPE (null=0 excluded). Baselines only — **STGNN training is Phase 2**:
-- **seasonal-HA** MAE ≈ **4.19** (flat across horizons; close to the paper's HA ≈ 4.16 — *reference only*, implementation details differ so not a direct comparison).
-- **copy-last** MAE grows with horizon (**4.02 → 5.09 → 6.80** @15/30/60 min): multi-step **error accumulation** (RQ2) observed already in the baseline.
+### Traffic forecasting — STGNN + baselines (real METR-LA)
+Real METR-LA (207 sensors, 5-min), chronological 70/10/20, **test split = 6,850 windows**, masked MAE (null=0), original units (mph). A small STGNN (2-layer, hidden 32, RTX 3060, ~5 min/mode, ~1.4 GB VRAM) trained under 4 adjacency modes vs the baselines:
+- **STGNN (learned adjacency)** MAE **3.00 / 3.50 / 4.28** @15/30/60 min — beats copy-last (4.02/5.09/6.80) at every horizon and seasonal-HA (4.19 flat) at 15/30 min; at 60 min HA is marginally better (4.19 vs 4.28).
+- **RQ1 (fixed vs learned adjacency):** learned (4.28 @60m) > fixed road-graph (4.89) > identity/no-graph (4.95) — **learning the adjacency beats the fixed road graph**.
+- **RQ2 (error accumulation):** STGNN-learned per-step MAE slope 0.155 vs copy-last 0.332 — the STGNN accumulates error ~half as fast (seasonal-HA is flat by construction).
+- **Not SOTA** (principle reproduction): our small model trails DCRNN's paper numbers (2.77/3.15/3.60); PEMS-BAY not run.
 
-Details: task card [`tasks/task-02-traffic-stgnn/README.md`](tasks/task-02-traffic-stgnn/README.md) · [`metrics.json`](tasks/task-02-traffic-stgnn/results/baselines-metr-la-20260704T035357Z/metrics.json).
+Details: task card [`tasks/task-02-traffic-stgnn/README.md`](tasks/task-02-traffic-stgnn/README.md) · [`metrics.json`](tasks/task-02-traffic-stgnn/results/stgnn-metr-la-20260704T053515Z/metrics.json).
 
 ## Phase 2 — why OccWorld inference is blocked (external factor)
 OccWorld's pretrained weights and temporal pkl are distributed only via the authors' **Tsinghua cloud (Seafile) links**, which are **currently inactive** ("share link not found" for both browser and CLI; a real token behaves identically to a bogus one). We cannot fabricate the model's numbers, so the **OccWorld-vs-baseline row is left blank**. See [`ISSUE_phase2_blocked.md`](tasks/task-01-occworld-spatial/ISSUE_phase2_blocked.md). Work resumes if the links are restored or a mirror is found.
