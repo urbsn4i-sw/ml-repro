@@ -1,7 +1,8 @@
 # Task 02 — 도시 교통 시공간 예측 (STGNN) · Spatiotemporal Forecasting
 
-> 상태: **Phase 1 진행 — 데이터 취득 + 기준선 실측 완료**. METR-LA 실데이터로 copy-last·seasonal-HA
-> 실측(아래 결과 표). STGNN 실제 학습은 **Phase 2** 로 이월. 데이터·가중치는 커밋하지 않는다(.gitignore).
+> 상태: **Phase 2 완료 — STGNN 실제 학습 + RQ1 절제 실측**. METR-LA 실데이터로 기준선(copy-last·
+> seasonal-HA)과 소형 STGNN 4모드(fixed/learned/hybrid/identity)를 실측(아래 결과 표·RQ1/RQ2 답).
+> 데이터·가중치는 커밋하지 않는다(.gitignore). SOTA 아님(원리 재현).
 
 ## 과제 카드 (12항목)
 - **과제명 / 방향:** 과제02 — 도시 교통 시공간 예측 · 그래프 신경망(STGNN)
@@ -113,41 +114,57 @@ python scripts/train.py --dry-run
 - **Phase 1 (데이터 취득 + 기준선 실측):** 로컬(CPU). ✅ 완료 — METR-LA 취득(gdown, 연구용 공개) →
   윈도우 12→12·시간순 70/10/20 분할·z-score 스케일러(train만) → copy-last·seasonal-HA 실측 →
   horizon 3/6/12 MAE/RMSE/MAPE + 오차 누적(RQ2). 재현: `python scripts/eval_baselines.py`.
-- **Phase 2 (STGNN 학습·절제):** 로컬 3060. ⏳ 예정 — 소형 STGNN 실제 학습 → 기준선 대비 →
-  인접행렬 fixed/learned 절제(RQ1) → 하드웨어(VRAM/시간) 기록.
+- **Phase 2-A (torch·CUDA 관문):** 로컬 3060. ✅ 완료 — torch 2.6.0+cu124 설치, CUDA 구동, 4모드 dry-run 통과.
+- **Phase 2-B (STGNN 학습 + RQ1 절제):** 로컬 3060(CUDA). ✅ 완료 — 소형 STGNN 을 인접행렬 4모드로
+  같은 조건(seed 42·epochs≤50·batch 256) 학습 → test MAE/RMSE/MAPE @3/6/12 실측.
+  재현: `python scripts/train_stgnn.py --modes fixed learned hybrid identity --epochs 50 --batch-size 256`.
 
-## 결과 (실제 실행값만 기입) — Phase 1, 실 METR-LA **test** split (6,850 윈도우), 원 단위(mph)·masked
-> 재현: `python scripts/eval_baselines.py` → `results/<run_id>/{metrics.json,summary.md}`
-> (seed=42, 시간순 train 23,974 / val 3,425 / test 6,850, 결측=0 마스크).
+## 결과 (실제 실행값만 기입) — 실 METR-LA **test** split (6,850 윈도우), 원 단위(mph)·masked(null=0)
+> 기준선 재현: `python scripts/eval_baselines.py` · STGNN 재현: `python scripts/train_stgnn.py`
+> → `results/<run_id>/{metrics.json,summary.md}`. seed=42, 시간순 train 23,974 / val 3,425 / test 6,850.
+> STGNN: 특징=[z-score speed, time-of-day], GPU=RTX 3060, epochs≤50, 각 모드 ~5분·VRAM ~1.4GB.
 
 | 모델 | MAE@15m | MAE@30m | MAE@60m | RMSE@60m | MAPE@60m(%) | MAE 기울기(스텝당) |
 |---|---|---|---|---|---|---|
-| copy-last (persistence) | 4.017 | 5.094 | 6.795 | 14.209 | 16.71 | **+0.332** (누적) |
+| copy-last (persistence) | 4.017 | 5.094 | 6.795 | 14.209 | 16.71 | +0.332 (누적) |
 | seasonal-HA (DCRNN 정의) | 4.187 | 4.187 | 4.187 | 7.852 | 13.03 | ~0.000 (평탄) |
-| STGNN (fixed adj) | — | — | — | — | — | — (Phase 2, RQ1) |
-| STGNN (learned adj) | — | — | — | — | — | — (Phase 2, RQ1) |
-| *(참조용)* *논문 HA (Li+ 2018 Table 1)* | *4.16* | *4.16* | *4.16* | *7.80* | *13.0* | *~0 (평탄)* |
+| STGNN **fixed** (도로망 A) | 3.112 | 3.795 | 4.889 | 9.500 | 14.38 | +0.212 |
+| STGNN **learned** (adaptive A) | **2.998** | **3.499** | **4.276** | **8.296** | **13.09** | +0.155 |
+| STGNN **hybrid** (fixed+adaptive) | 3.007 | 3.525 | 4.307 | 8.329 | 13.17 | +0.159 |
+| STGNN **identity** (그래프 없음) | 3.149 | 3.841 | 4.953 | 9.707 | 14.69 | +0.215 |
+| *(참조용)* *DCRNN 논문 (Li+ 2018)* | *2.77* | *3.15* | *3.60* | *—* | *—* | *—* |
+| *(참조용)* *논문 HA (Li+ 2018)* | *4.16* | *4.16* | *4.16* | *7.80* | *13.0* | *~0* |
 
-> ⚠️ 논문 HA 는 **참조용**(full METR-LA, HA 주기/결측처리 세부 차이). 우리 seasonal-HA(4.19)와 근접하나
-> 직접 비교는 주의하며 **우리 결과로 옮겨 적지 않는다**. copy-last 는 논문 미보고(참조값 없음).
+> ⚠️ 논문값(DCRNN·HA)은 **참조용**이며 우리 소형·축소 설정(2-layer·batch 256·특징 2개·≤50ep)과 달라
+> **직접 비교 아님**. 우리 결과로 옮겨 적지 않는다.
 
-### RQ2 — 다단계 오차 누적 (기준선에서 먼저 관찰)
-- **copy-last:** MAE 가 지평 따라 **단조 증가** 3.05→…→6.80(@5→@60분), 스텝당 +0.332, @60분/@5분 **2.23×**.
-  persistence 는 시간이 갈수록 마지막 관측이 낡아 오차가 쌓인다 — 전형적 누적.
-- **seasonal-HA:** MAE 가 모든 지평에서 **평탄**(≈4.19, 기울기 0). 타깃 시각의 주(week) 계절 슬롯만
-  보므로 "얼마나 먼 미래냐"와 무관 → 누적 없음.
-- 대조 요지: **오차 누적은 예측 방식의 성질**이다. Phase 2 STGNN 이 이 누적을 얼마나 완화하는지가 관전 포인트.
+### RQ1 답 — 인접행렬 고정 vs 학습
+- **그래프가 도움된다:** `identity`(그래프 없음)가 STGNN 중 가장 나쁨(4.95@60m). 도로망(`fixed`)·adaptive 를
+  넣으면 개선.
+- **학습(adaptive)이 고정(도로망)보다 낫다:** `learned`(3.00/3.50/4.28)가 `fixed`(3.11/3.80/4.89)를 전 지평에서 앞섬.
+  → **RQ1 답: 인접행렬을 데이터로 학습하는 편이 고정 도로망 그래프보다 이득**(이 축소 설정에서).
+- `hybrid`(3.01/3.53/4.31) ≈ `learned` — 고정+학습 결합이 학습 단독을 유의하게 넘지는 못함.
+
+### STGNN이 기준선을 이기는가
+- copy-last: **전 지평에서 STGNN 이 우세**(예: 60m 4.28 vs 6.80).
+- seasonal-HA: **15/30분은 STGNN 우세**(15m 3.00 vs 4.19), **60분은 HA 가 근소 우위**(4.19 vs learned 4.28).
+  → 단기·중기는 STGNN, 장기(60분)는 계절 HA 가 여전히 경쟁력. 정직하게 병기.
+
+### RQ2 — 다단계 오차 누적 (기준선 vs STGNN)
+- copy-last 스텝당 MAE 기울기 **+0.332**(60/15분 2.23×). STGNN `learned` **+0.155**(약 절반), `fixed` +0.212.
+  → **STGNN 은 persistence 대비 오차 누적을 크게 완화**(그래프 학습이 더 완화). 단, seasonal-HA(평탄, 0)처럼
+  완전 무누적은 아님(HA 는 계절 슬롯만 봐서 지평 무관).
 
 ## 한계 / 미확인
-- **STGNN 미학습**(Phase 2). 위 결과 표의 STGNN 행은 공란(값 지어내지 않음). 현재는 기준선만 실측.
-- STGNN(`src/model.py`)은 **import 만 검증된 골격**이다(로컬에 torch 미설치). 순전파/형상·학습·성능은
-  Phase 2(torch 설치 후 `python scripts/train.py --dry-run` 형상 assert → 실학습) 에서 확인한다.
-- **seasonal-HA vs 논문 HA**: 4.19 vs 4.16 으로 근접하나 HA 주기(주간)·결측 마스킹 구현 차이가 있어
-  **직접 비교 아님**(참조용). copy-last 는 논문 미보고라 참조값 자체가 없음.
-- **PEMS-BAY 미실측**: 파일은 취득했으나(gitignore) 이번 실측은 METR-LA 만. PEMS-BAY 는 Phase 2 확장.
-- **z-score 스케일러는 저장만**(`data/processed/scaler.json`, gitignore) — Phase 2 STGNN 학습용이며 기준선
-  지표는 원 단위(mph)로 계산했다.
-- `smoke.sh` 수치는 합성 더미이며 성능 보고가 아니다(`synthetic_dummy=true`, 위 실측과 별개).
+- **SOTA 아님(원리 재현):** 우리 소형 STGNN(2-layer·hidden 32·특징 2개·≤50ep)은 DCRNN 논문(2.77/3.15/3.60)에
+  못 미친다. 목적은 원리 재현·RQ 확인이지 SOTA 재현이 아니다. 논문값은 참조용으로만 병기.
+- **60분 지평에서 seasonal-HA 우위:** STGNN(learned 4.28) 이 60분에서 HA(4.19)에 근소하게 진다 —
+  더 큰 모델·긴 학습·풍부한 특징이면 뒤집힐 여지가 있으나 이번 축소 설정에선 미달(정직 표기).
+- **GPU 비결정성:** cudnn.deterministic 이 이 Conv1d 에서 ~25배 느려 benchmark 모드로 학습했다. 시드는
+  고정(초기화·데이터 순서)이나 GPU 합성곱은 bitwise 재현이 아니다(재실행 시 소수점 미세 차이 가능).
+- **PEMS-BAY 미실측:** 파일은 취득(gitignore)했으나 이번 학습·평가는 METR-LA 만.
+- **seasonal-HA vs 논문 HA**: 4.19 vs 4.16 근접하나 구현 세부 차이로 직접 비교 아님(참조용).
+- `smoke.sh` 수치는 합성 더미(`synthetic_dummy=true`)이며 위 실측과 별개다.
 
 ## 완료 정의 (DoD) 체크
 **Phase 0 (스캐폴딩) — 완료**
@@ -165,8 +182,14 @@ python scripts/train.py --dry-run
 - [x] 다단계 오차 누적(RQ2) 기준선에서 관찰·기록 — copy-last 누적 vs HA 평탄
 - [x] 논문값은 참조용으로만 분리 표기(직접 비교 주의)
 
-**미완 — Phase 2 이월**
-- [ ] 소형 STGNN **실제 학습** + 기준선 대비 지표 표(results/, 실제 값)
-- [ ] 절제 실험(인접행렬 fixed/learned/hybrid/identity) 실측 — RQ1
-- [ ] 게이밍PC(3060 8GB) 실제 학습 시간·VRAM 기록
+**Phase 2 (STGNN 학습 + RQ1 절제) — 완료**
+- [x] torch 2.6.0+cu124 설치·CUDA 구동(RTX 3060, 2-A) + 4모드 forward dry-run 통과
+- [x] 소형 STGNN **실제 학습**(METR-LA) + 기준선 대비 지표 표(`results/`, 실제 값)
+- [x] 절제 실험(인접행렬 fixed/learned/hybrid/identity) 같은 조건 실측 — **RQ1 답: 학습 A > 고정 A**
+- [x] RQ2 오차 누적을 STGNN 에서도 확인(누적 완화: copy-last 0.332 → learned 0.155)
+- [x] 게이밍PC(3060 8GB) 실제 학습 시간(~5분/모드)·VRAM(~1.4GB) 기록
+- [x] 논문값(DCRNN/HA)은 참조용 분리(축소 설정이라 직접 비교 아님)
+
+**미완 — 후속 이월**
+- [ ] (선택) PEMS-BAY 확장 · 더 큰 모델/긴 학습으로 60분 지평 개선 시도
 - [ ] (선택) PEMS-BAY 확장
